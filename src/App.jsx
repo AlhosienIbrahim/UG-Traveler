@@ -95,6 +95,14 @@ const STOP_WORDS = new Set([
 
   // ── بقايا "ال" بعد حذف أسماء مناطق ──
   'ال','وال','بال','لل','فال',
+
+  // ── كلمات طلب / رغبة ──
+  'عايز','عايزة','عاوز','عاوزة','عوز','عوزة',
+  'محتاج','محتاجة','محتاجه',
+  'نفسي','نفسه','نفسها',
+  'ابي','ابغى','ابغ','بدي',
+  'اريد','يريد','تريد','نريد','اريده',
+  'طلبي','طلبه','طلبها',
 ]);
 
 // ══════════════════════════════════════════════════
@@ -118,8 +126,10 @@ const JUNK_LINE_PATTERNS = [
   /(?:هيجي|هاجي|هجي)\s*معاكم/,
   /(?:اسجلني|اسجلوني|سجلني|سجلوني|ضيفني|ضيفوني|اضيفني|اضيفوني)/,
   /^(?:اوك|اوكي|تمام|ماشي|حسناً|حسنا|خلاص|يلا|ياريت|إن شاء الله|ان شاء الله|بكرة|النهارده|امبارح|كويس|تسلم|يسلمو|يسلموا)\s*[؟!.،]*$/,
-  // إضافة: جمل "بكرة" / تأكيد فارغة
+  // جمل "بكرة" / تأكيد فارغة
   /^(?:ايوه|اه|اهه|معلش|عادي|طب|طيب|يعني ايه)\s*[؟!.،]*$/,
+  // كلمات طلب/رغبة كسطر مستقل — لا تمثل اسماً
+  /^(?:عايز|عايزة|عاوز|عاوزة|محتاج|محتاجة|محتاجه|عوز|عوزة)\s*[\u0600-\u06FF\s]{0,20}[؟!.،]*$/,
 ];
 
 function isJunkLine(line) {
@@ -256,6 +266,41 @@ const today = () => new Date().toISOString().split('T')[0];
 const fmtDate = d => { try { return new Date(d).toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }); } catch { return d; } };
 
 /* ═══════════════════════════════════════════════════
+   ANDROID BACK HANDLER STACK
+   — أي modal يسجّل نفسه لما يفتح ويمسح نفسه لما يقفل
+   — زر الرجوع يشغّل أحدث handler أولاً
+═══════════════════════════════════════════════════ */
+const _backStack = [];
+
+function _pushBackHandler(fn) {
+  _backStack.push(fn);
+  if (window.AndroidBridge) window.AndroidBridge.setCanGoBack(true);
+}
+
+function _popBackHandler() {
+  _backStack.pop();
+}
+
+function _fireBackHandler() {
+  if (_backStack.length > 0) {
+    _backStack[_backStack.length - 1]();
+    return true;
+  }
+  return false;
+}
+
+function useModalBackHandler(isOpen, onClose) {
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = () => onCloseRef.current();
+    _pushBackHandler(handler);
+    return () => _popBackHandler();
+  }, [isOpen]);
+}
+
+/* ═══════════════════════════════════════════════════
    ARABIC MESSAGE PARSER
 ═══════════════════════════════════════════════════ */
 const ARABIC = /^[\u0621-\u063A\u0641-\u064A\u0670\u067E\u0686\u0698\u06AF\u06CC\u06C1]+$/;
@@ -317,7 +362,7 @@ function extractCleanName(text, phonesToRemove, regionsToRemove) {
   return s
     .split(/[\s\n]+/)
     .map(w => w.replace(/[^\u0621-\u063A\u0641-\u064A\u0670\u067E\u0686\u0698\u06AF\u06CC\u06C1]/g, '').trim())
-    .filter(w => w.length > 1 && !STOP_WORDS.has(w) && ARABIC.test(w))
+    .filter(w => w.length > 1 && !STOP_WORDS.has(arNorm(w)) && !STOP_WORDS.has(w) && ARABIC.test(w))
     .join(' ')
     .trim();
 }
@@ -577,21 +622,37 @@ function parseMultilineBlocks(raw, regions) {
     const hasRegion = !!cl.region;
     const isMixed = (hasName && (hasPhone || hasRegion)) || (hasPhone && hasRegion);
 
+    // لو الـ block الحالي مكتمل (اسم + رقم) → أي سطر اسم جديد يروح notes
+    const curComplete = cur && cur.name && cur.phone;
+
     if (isMixed) {
-      // سطر مختلط: اسم + رقم + منطقة في نفس الوقت → person جديدة كاملة
-      if (cur) blocks.push(cur);
-      cur = { name: cl.nameStr || '', phone: cl.phone || '', region: cl.region || null };
-      blocks.push(cur); cur = null;
+      if (curComplete) {
+        // مثلاً "ميعاد اول" بعد block مكتمل → notes
+        cur.notes = [cur.notes, lines[i].trim()].filter(Boolean).join(' ، ');
+      } else {
+        if (cur) blocks.push(cur);
+        cur = { name: cl.nameStr || '', phone: cl.phone || '', region: cl.region || null, notes: '' };
+        blocks.push(cur); cur = null;
+      }
     } else if (cl.type === 'name' && cl.value) {
-      if (cur) blocks.push(cur);
-      cur = { name: cl.value, phone: '', region: null };
+      if (curComplete) {
+        // اسم بعد block مكتمل → notes
+        cur.notes = [cur.notes, lines[i].trim()].filter(Boolean).join(' ، ');
+      } else {
+        if (cur) blocks.push(cur);
+        cur = { name: cl.value, phone: '', region: null, notes: '' };
+      }
     } else if (cl.type === 'phone') {
-      if (!cur) cur = { name: '', phone: cl.value, region: null };
+      if (!cur) cur = { name: '', phone: cl.value, region: null, notes: '' };
       else if (!cur.phone) cur.phone = cl.value;
-      else { blocks.push(cur); cur = { name: '', phone: cl.value, region: null }; }
+      else { blocks.push(cur); cur = { name: '', phone: cl.value, region: null, notes: '' }; }
     } else if (cl.type === 'region') {
-      if (!cur) cur = { name: '', phone: '', region: cl.value };
+      if (!cur) cur = { name: '', phone: '', region: cl.value, notes: '' };
       else cur.region = cl.value;
+    } else if (cl.type === 'empty' && cur && lines[i].trim()) {
+      // سطر مش فاضي بس ما اتعرفش → notes
+      const raw = lines[i].trim();
+      if (raw) cur.notes = [cur.notes, raw].filter(Boolean).join(' ، ');
     }
   });
   if (cur) blocks.push(cur);
@@ -640,7 +701,7 @@ function splitPersonSegments(raw) {
     const ws = seg.trim()
       .replace(/[^\u0621-\u063A\u0641-\u064A\u0670\u067E\u0686\u0698\u06AF\u06CC\u06C1\s]/g, '')
       .split(/\s+/)
-      .filter(w => w.length > 1 && !STOP_WORDS.has(w));
+      .filter(w => w.length > 1 && !STOP_WORDS.has(w) && !STOP_WORDS.has(arNorm(w)));
     return ws.length >= 1 && ws.length <= 4;
   };
 
@@ -669,7 +730,7 @@ function parseMessage(text, regions) {
   if (blocks && blocks.length > 0) {
     const passengers = blocks
       .filter(b => b.name || b.phone)
-      .map(b => ({ name: b.name, phone: b.phone, region: b.region, originalMessage: raw }));
+      .map(b => ({ name: b.name, phone: b.phone, region: b.region, notes: b.notes || '', originalMessage: raw }));
     const hasPhone = passengers.some(p => p.phone);
     const hasRegion = passengers.some(p => p.region);
     const hasName = passengers.some(p => p.name);
@@ -740,6 +801,50 @@ function ToastProvider({ children }) {
   );
 }
 const useToast = () => useContext(ToastCtx);
+
+/* ═══════════════════════════════════════════════════
+   CONFIRM DIALOG — بديل لـ window.confirm()
+   (confirm() مش بيشتغل في Android WebView)
+═══════════════════════════════════════════════════ */
+const ConfirmCtx = createContext(null);
+
+function ConfirmProvider({ children }) {
+  const [state, setState] = useState(null);
+
+  const confirm = useCallback((msg) => {
+    return new Promise((resolve) => {
+      setState({
+        msg,
+        onOk: () => { setState(null); resolve(true); },
+        onCancel: () => { setState(null); resolve(false); },
+      });
+    });
+  }, []);
+
+  useModalBackHandler(!!state, () => state?.onCancel());
+
+  return (
+    <ConfirmCtx.Provider value={confirm}>
+      {children}
+      {state && (
+        <div className="modal-overlay" onClick={state.onCancel}>
+          <div className="modal anim" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 20, lineHeight: 1.6 }}>
+              {state.msg}
+            </div>
+            <div className="flex gap8" style={{ justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" onClick={state.onCancel}>إلغاء</button>
+              <button className="btn btn-danger" onClick={state.onOk}>تأكيد</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </ConfirmCtx.Provider>
+  );
+}
+
+const useConfirm = () => useContext(ConfirmCtx);
+
 
 
 
@@ -1090,7 +1195,7 @@ function PassengerRow({ p, onStatus, onEdit, onDelete }) {
 /* ═══════════════════════════════════════════════════
    REGION GROUP
 ═══════════════════════════════════════════════════ */
-function RegionGroup({ region, passengers, onStatus, onEdit, onDelete, onComplete, isDone }) {
+function RegionGroup({ region, passengers, onStatus, onEdit, onDelete, onComplete, onDeleteRegion, isDone }) {
   const [open, setOpen] = useState(true);
   const arrived = passengers.filter(p => p.status === 'arrived').length;
   const isOther = !region;
@@ -1116,6 +1221,16 @@ function RegionGroup({ region, passengers, onStatus, onEdit, onDelete, onComplet
               ↩ إلغاء
             </button>
           )}
+          {passengers.length > 0 && (
+            <button
+              className="btn btn-ghost btn-sm"
+              title="حذف كل ركاب هذه المنطقة"
+              style={{ color: 'var(--red-dim)', padding: '4px 8px' }}
+              onClick={onDeleteRegion}
+            >
+              🗑️
+            </button>
+          )}
           <span style={{ fontSize: 11, color: 'var(--text4)' }} onClick={() => setOpen(o => !o)}>
             {open ? '▲' : '▼'}
           </span>
@@ -1137,12 +1252,15 @@ function MessageParserPanel({ regions, draftPassengers, onAddPassengers }) {
   const [result, setResult] = useState(null);
   const [editable, setEditable] = useState([]);
   const [open, setOpen] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(10);
+  const PAGE = 10;
 
   const handleParse = () => {
     if (!text.trim()) return;
     const r = parseMessage(text.trim(), regions);
     setResult(r);
     setEditable(r.passengers.map(p => ({ ...p, id: uid(), regionId: p.region?.id || '' })));
+    setVisibleCount(10); // reset لما نحلل رسالة جديدة
   };
 
   const upd = (idx, field, val) => setEditable(prev => prev.map((p, i) => i === idx ? { ...p, [field]: val } : p));
@@ -1211,7 +1329,17 @@ function MessageParserPanel({ regions, draftPassengers, onAddPassengers }) {
                 </div>
               )}
 
-              {editable.map((p, idx) => (
+              {/* أزرار الحفظ في الأعلى لو الركاب أكتر من 10 */}
+              {editable.length > 10 && (
+                <div className="flex gap8" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
+                  <button className="btn btn-success" onClick={handleSave}>
+                    💾 حفظ {editable.length} ركاب
+                  </button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => { setResult(null); setEditable([]); }}>إلغاء</button>
+                </div>
+              )}
+
+              {editable.slice(0, visibleCount).map((p, idx) => (
                 <div key={p.id} style={{ background: 'var(--card2)', borderRadius: 10, padding: 14, marginBottom: 10, border: '1px solid var(--border2)' }} className="anim">
                   <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 10, fontWeight: 700 }}>
                     الراكب {idx + 1} من {editable.length}
@@ -1239,15 +1367,43 @@ function MessageParserPanel({ regions, draftPassengers, onAddPassengers }) {
                     <label>ملاحظات</label>
                     <input value={p.notes || ''} onChange={e => upd(idx, 'notes', e.target.value)} placeholder="ملاحظات اختيارية" />
                   </div>
-                  {editable.length > 1 && (
-                    <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)', marginTop: 8 }} onClick={() => setEditable(prev => prev.filter((_, i) => i !== idx))}>
-                      🗑️ حذف هذا الراكب
+                  <div className="flex gap8" style={{ marginTop: 8, flexWrap: 'wrap' }}>
+                    <button
+                      className="btn btn-success btn-sm"
+                      onClick={() => {
+                        onAddPassengers([{ ...p, status: 'pending' }]);
+                        toast(`تم إضافة ${p.name || 'الراكب'}`, 'success');
+                        setEditable(prev => prev.filter((_, i) => i !== idx));
+                        if (editable.length === 1) { setResult(null); setText(''); }
+                      }}
+                    >
+                      ✔ إضافة هذا الراكب
                     </button>
-                  )}
+                    {editable.length > 1 && (
+                      <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => setEditable(prev => prev.filter((_, i) => i !== idx))}>
+                        🗑️ حذف
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
 
-              <div className="flex gap8" style={{ marginTop: 4 }}>
+              {/* زر عرض المزيد */}
+              {visibleCount < editable.length && (
+                <div style={{ textAlign: 'center', margin: '8px 0' }}>
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => setVisibleCount(v => v + PAGE)}
+                  >
+                    ▼ عرض {Math.min(PAGE, editable.length - visibleCount)} أكتر
+                    <span style={{ color: 'var(--text4)', fontSize: 11, marginRight: 6 }}>
+                      (متبقي {editable.length - visibleCount})
+                    </span>
+                  </button>
+                </div>
+              )}
+
+              <div className="flex gap8" style={{ marginTop: 4, flexWrap: 'wrap' }}>
                 <button className="btn btn-success" onClick={handleSave}>
                   💾 حفظ {editable.length > 1 ? `${editable.length} ركاب` : 'الراكب'}
                 </button>
@@ -1539,10 +1695,14 @@ function ExportModal({ groups, regionStatus, onClose }) {
 ═══════════════════════════════════════════════════ */
 function DraftView({ draft, regions, onUpdate }) {
   const toast = useToast();
+  const confirm = useConfirm();
   const [showModal, setShowModal] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [editing, setEditing] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  useModalBackHandler(showModal, () => { setShowModal(false); setEditing(null); });
+  useModalBackHandler(showExport, () => setShowExport(false));
 
   const passengers = draft.passengers || [];
   const regionStatus = draft.regionStatus || {};
@@ -1582,7 +1742,7 @@ function DraftView({ draft, regions, onUpdate }) {
   }, [filteredPassengers, regions]);
 
   const handleStatus = (id, status) => setPassengers(passengers.map(p => p.id === id ? { ...p, status } : p));
-  const handleDelete = (id) => { if (confirm('حذف هذا الراكب؟')) setPassengers(passengers.filter(p => p.id !== id)); };
+  const handleDelete = async (id) => { if (await confirm('حذف هذا الراكب؟')) setPassengers(passengers.filter(p => p.id !== id)); };
   const handleEdit = (p) => { setEditing(p); setShowModal(true); };
 
   const handleSavePassenger = (p) => {
@@ -1600,6 +1760,21 @@ function DraftView({ draft, regions, onUpdate }) {
     const newStatus = { ...regionStatus, [regionId]: action === 'undo' ? 'pending' : 'completed' };
     onUpdate({ ...draft, regionStatus: newStatus });
     if (action !== 'undo') toast('تم تحديد المنطقة كمنتهية ✔', 'success');
+  };
+
+  const handleDeleteRegion = async (regionId, regionName) => {
+    const count = passengers.filter(p => (p.region?.id || p.regionId) === regionId).length;
+    if (!await confirm(`حذف منطقة "${regionName}" وكل ركابها (${count} راكب)؟`)) return;
+    setPassengers(passengers.filter(p => (p.region?.id || p.regionId) !== regionId));
+    toast(`تم حذف منطقة "${regionName}" وركابها`, 'success');
+  };
+
+  const handleDeleteOthers = async () => {
+    const activeIds = new Set(regions.filter(r => r.active).map(r => r.id));
+    const count = passengers.filter(p => { const rid = p.region?.id || p.regionId; return !rid || !activeIds.has(rid); }).length;
+    if (!await confirm(`حذف "مناطق أخرى" وكل ركابها (${count} راكب)؟`)) return;
+    setPassengers(passengers.filter(p => { const rid = p.region?.id || p.regionId; return rid && activeIds.has(rid); }));
+    toast('تم حذف ركاب مناطق أخرى', 'success');
   };
 
   return (
@@ -1673,6 +1848,7 @@ function DraftView({ draft, regions, onUpdate }) {
             onEdit={handleEdit}
             onDelete={handleDelete}
             onComplete={handleComplete}
+            onDeleteRegion={g.region ? () => handleDeleteRegion(g.region.id, g.region.name) : handleDeleteOthers}
             isDone={g.region && regionStatus[g.region.id] === 'completed'}
           />
         ))
@@ -1739,6 +1915,7 @@ function CreateDraftModal({ onSave, onClose }) {
 
 function Dashboard({ drafts, onOpen, onCreate, onDelete }) {
   const todayDate = today();
+  const confirm = useConfirm();
   const sorted = [...drafts].sort((a, b) => new Date(b.date) - new Date(a.date));
 
   return (
@@ -1794,7 +1971,7 @@ function Dashboard({ drafts, onOpen, onCreate, onDelete }) {
                   </div>
                   <div className="flex gap8 shrink0" onClick={e => e.stopPropagation()}>
                     <button className="btn btn-primary btn-sm" onClick={() => onOpen(d.id)}>فتح ←</button>
-                    <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red-dim)' }} onClick={() => { if (confirm('حذف هذه المسودة نهائياً؟')) onDelete(d.id); }}>🗑️</button>
+                    <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red-dim)' }} onClick={async () => { if (await confirm('حذف هذه المسودة نهائياً؟')) onDelete(d.id); }}>🗑️</button>
                   </div>
                 </div>
               </div>
@@ -1811,6 +1988,7 @@ function Dashboard({ drafts, onOpen, onCreate, onDelete }) {
 ═══════════════════════════════════════════════════ */
 function SettingsPage({ regions, onUpdate, drafts, onImportDrafts }) {
   const toast = useToast();
+  const confirm = useConfirm();
   const [list, setList] = useState([...regions].sort((a, b) => a.sortOrder - b.sortOrder));
   const [newName, setNewName] = useState('');
   const [dragIdx, setDragIdx] = useState(null);
@@ -1821,7 +1999,7 @@ function SettingsPage({ regions, onUpdate, drafts, onImportDrafts }) {
 
   const toggle = (id) => persist(list.map(r => r.id === id ? { ...r, active: !r.active } : r));
 
-  const del = (id) => { if (confirm('حذف هذه المنطقة نهائياً؟')) { persist(list.filter(r => r.id !== id)); toast('تم حذف المنطقة', 'success'); } };
+  const del = async (id) => { if (await confirm('حذف هذه المنطقة نهائياً؟')) { persist(list.filter(r => r.id !== id)); toast('تم حذف المنطقة', 'success'); } };
 
   const addNew = () => {
     if (!newName.trim()) return;
@@ -1943,8 +2121,8 @@ function SettingsPage({ regions, onUpdate, drafts, onImportDrafts }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [list]);
 
-  const resetRegions = () => {
-    if (!confirm('هل تريد إعادة ضبط المناطق للقائمة الافتراضية؟\nسيتم حذف أي مناطق أضفتها يدوياً.')) return;
+  const resetRegions = async () => {
+    if (!await confirm('هل تريد إعادة ضبط المناطق للقائمة الافتراضية؟\nسيتم حذف أي مناطق أضفتها يدوياً.')) return;
     persist(DEFAULT_REGIONS);
     toast('تم إعادة ضبط المناطق للقائمة الافتراضية ✔', 'success');
   };
@@ -2110,6 +2288,8 @@ export default function App() {
   const [draftId, setDraftId] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
 
+  useModalBackHandler(showCreate, () => setShowCreate(false));
+
   // Timers for debounced writes — one ref per store key
   const regionsTimer = useRef(null);
   const draftsTimer = useRef(null);
@@ -2156,25 +2336,44 @@ export default function App() {
     return () => clearTimeout(draftsTimer.current);
   }, [drafts]);
 
+  // ── nav + Android bridge — لازم يكونوا قبل أي early return ──
+  const nav = useCallback((v) => {
+    setView(v);
+    if (v !== 'draft') setDraftId(null);
+    if (window.AndroidBridge) {
+      window.AndroidBridge.setCanGoBack(v !== 'dashboard');
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleAndroidBack = () => {
+      if (!_fireBackHandler()) nav('dashboard');
+    };
+    window.addEventListener('androidBack', handleAndroidBack);
+    return () => window.removeEventListener('androidBack', handleAndroidBack);
+  }, [nav]);
+
   // Show a full-screen spinner while IDB is loading
   if (loading) return <LoadingScreen />;
 
   const currentDraft = drafts.find(d => d.id === draftId);
 
-  const nav = (v) => { setView(v); if (v !== 'draft') setDraftId(null); };
-
-  const openDraft = (id) => { setDraftId(id); setView('draft'); };
+  const openDraft = (id) => {
+    setDraftId(id);
+    setView('draft');
+    if (window.AndroidBridge) window.AndroidBridge.setCanGoBack(true);
+  };
   const createDraft = (data) => { setDrafts(p => [...p, data]); setShowCreate(false); openDraft(data.id); };
   const deleteDraft = (id) => setDrafts(p => p.filter(d => d.id !== id));
   const updateDraft = (d) => setDrafts(p => p.map(x => x.id === d.id ? d : x));
 
-  // Called by SettingsPage's import — replaces the draft list immediately
   const handleImportDrafts = (importedDrafts) => {
     setDrafts(importedDrafts);
   };
 
   return (
     <ToastProvider>
+      <ConfirmProvider>
       <Header
         view={view}
         onNav={nav}
@@ -2215,6 +2414,7 @@ export default function App() {
       {showCreate && (
         <CreateDraftModal onSave={createDraft} onClose={() => setShowCreate(false)} />
       )}
+      </ConfirmProvider>
     </ToastProvider>
   );
 }

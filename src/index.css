@@ -9,6 +9,24 @@
   src: url('/fonts/cairo-latin.woff2') format('woff2');
   unicode-range: U+0000-00FF,U+2000-206F,U+20AC,U+FEFF,U+FFFD; }
 
+/* ── إخفاء الـ scrollbar في كل المتصفحات ── */
+* {
+  scrollbar-width: none;        /* Firefox */
+  -ms-overflow-style: none;     /* IE / Edge */
+}
+*::-webkit-scrollbar {
+  display: none;                /* Chrome / Safari / Android WebView */
+}
+
+html, body {
+  height: 100%;
+  overflow-x: hidden;
+}
+
+html {
+  background: #0f1419; /* يمنع الوميض خلف system bars */
+}
+
 *,
 *::before,
 *::after {
