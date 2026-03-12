@@ -1197,8 +1197,11 @@ function PassengerRow({ p, onStatus, onEdit, onDelete }) {
 ═══════════════════════════════════════════════════ */
 function RegionGroup({ region, passengers, onStatus, onEdit, onDelete, onComplete, onDeleteRegion, isDone }) {
   const [open, setOpen] = useState(true);
+  const [visibleCount, setVisibleCount] = useState(10);
+  const PAGE = 10;
   const arrived = passengers.filter(p => p.status === 'arrived').length;
   const isOther = !region;
+  const visiblePassengers = passengers.slice(0, visibleCount);
 
   return (
     <div className="rg" style={{ borderColor: isDone ? 'rgba(16,185,129,.3)' : 'var(--border)' }}>
@@ -1236,9 +1239,22 @@ function RegionGroup({ region, passengers, onStatus, onEdit, onDelete, onComplet
           </span>
         </div>
       </div>
-      {open && passengers.map(p => (
+      {open && visiblePassengers.map(p => (
         <PassengerRow key={p.id} p={p} onStatus={onStatus} onEdit={onEdit} onDelete={onDelete} />
       ))}
+      {open && visibleCount < passengers.length && (
+        <div style={{ textAlign: 'center', padding: '8px', borderTop: '1px solid var(--border)' }}>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => setVisibleCount(v => v + PAGE)}
+          >
+            ▼ عرض {Math.min(PAGE, passengers.length - visibleCount)} أكتر
+            <span style={{ color: 'var(--text4)', fontSize: 11, marginRight: 6 }}>
+              (متبقي {passengers.length - visibleCount})
+            </span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
