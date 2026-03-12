@@ -2055,21 +2055,23 @@ function Dashboard({ drafts, onOpen, onCreate, onDelete, onClearDrafts }) {
 
   return (
     <div style={{ maxWidth: 920, margin: '0 auto', padding: '16px' }}>
-      <div className="flex-center" style={{ marginBottom: 24, gap: 12 }}>
-        <div style={{ flex: 1 }}>
+      <div className="flex-center" style={{ marginBottom: 24, gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 160 }}>
           <h1 className="section-title">المسودات اليومية</h1>
           <p className="section-sub">إدارة رحلات وركاب كل يوم</p>
         </div>
-        {sorted.length > 0 && (
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={handleClearAll}
-            style={{ color: 'var(--red)', borderColor: 'rgba(239,68,68,.3)', flexShrink: 0 }}
-          >
-            🗑️ حذف الكل
-          </button>
-        )}
-        <button className="btn btn-primary btn-lg" onClick={onCreate}>➕ مسودة جديدة</button>
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+          {sorted.length > 0 && (
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={handleClearAll}
+              style={{ color: 'var(--red)', borderColor: 'rgba(239,68,68,.3)' }}
+            >
+              🗑️ حذف الكل
+            </button>
+          )}
+          <button className="btn btn-primary" onClick={onCreate}>➕ مسودة جديدة</button>
+        </div>
       </div>
 
       {sorted.length === 0 ? (
