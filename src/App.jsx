@@ -683,6 +683,7 @@ function parseMultilineBlocks(raw, regions) {
   // Build person blocks
   const blocks = [];
   let cur = null;
+  let noteBatchStart = 0; // index في blocks من آخر ملاحظة
 
   classified.forEach((cl, i) => {
     const hasName = !!cl.nameStr;
@@ -693,7 +694,14 @@ function parseMultilineBlocks(raw, regions) {
 
     // ── سطر ملاحظات (ميعاد/موعد/رحلة) → notes فوراً ──
     if (isNotesLine(lines[i])) {
-      if (cur) cur.notes = [cur.notes, lines[i].trim()].filter(Boolean).join(' ، ');
+      const note = lines[i].trim();
+      // تطبّق على الركاب منذ آخر ملاحظة فقط + cur لو موجود
+      const batch = [...blocks.slice(noteBatchStart), ...(cur ? [cur] : [])].filter(b => b.name);
+      batch.forEach(b => {
+        b.notes = [b.notes, note].filter(Boolean).join(' ، ');
+      });
+      // الـ batch الجديد يبدأ بعد كل الـ blocks الحالية
+      noteBatchStart = blocks.length;
       return;
     }
 
