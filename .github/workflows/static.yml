@@ -28,14 +28,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
-          cache-dependency-path: gu-travel/package-lock.json
+          cache: "npm"
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        run: cd gu-travel && npm install
+        run: cd npm install
 
       - name: Build
-        run: cd gu-travel && npm run build
+        run: cd npm run build
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -43,7 +43,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './gu-travel/dist'
+          path: "./dist"
 
       - name: Deploy to GitHub Pages
         id: deployment
