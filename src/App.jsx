@@ -2040,10 +2040,18 @@ function CreateDraftModal({ onSave, onClose }) {
   );
 }
 
-function Dashboard({ drafts, onOpen, onCreate, onDelete }) {
+function Dashboard({ drafts, onOpen, onCreate, onDelete, onClearDrafts }) {
   const todayDate = today();
   const confirm = useConfirm();
   const sorted = [...drafts].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const toast = useToast();
+
+  const handleClearAll = async () => {
+    const ok = await confirm('هل أنت متأكد من حذف جميع المسودات؟\nلا يمكن التراجع عن هذا الإجراء.');
+    if (!ok) return;
+    await onClearDrafts();
+    toast('تم حذف جميع المسودات', 'success');
+  };
 
   return (
     <div style={{ maxWidth: 920, margin: '0 auto', padding: '16px' }}>
@@ -2052,6 +2060,15 @@ function Dashboard({ drafts, onOpen, onCreate, onDelete }) {
           <h1 className="section-title">المسودات اليومية</h1>
           <p className="section-sub">إدارة رحلات وركاب كل يوم</p>
         </div>
+        {sorted.length > 0 && (
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={handleClearAll}
+            style={{ color: 'var(--red)', borderColor: 'rgba(239,68,68,.3)', flexShrink: 0 }}
+          >
+            🗑️ حذف الكل
+          </button>
+        )}
         <button className="btn btn-primary btn-lg" onClick={onCreate}>➕ مسودة جديدة</button>
       </div>
 
@@ -2493,6 +2510,10 @@ export default function App() {
   const createDraft = (data) => { setDrafts(p => [...p, data]); setShowCreate(false); openDraft(data.id); };
   const deleteDraft = (id) => setDrafts(p => p.filter(d => d.id !== id));
   const updateDraft = (d) => setDrafts(p => p.map(x => x.id === d.id ? d : x));
+  const clearAllDrafts = async () => {
+    await removeItem(SK.DRAFTS);
+    setDrafts([]);
+  };
 
   const handleImportDrafts = (importedDrafts) => {
     setDrafts(importedDrafts);
@@ -2514,6 +2535,7 @@ export default function App() {
             onOpen={openDraft}
             onCreate={() => setShowCreate(true)}
             onDelete={deleteDraft}
+            onClearDrafts={clearAllDrafts}
           />
         )}
         {view === 'draft' && currentDraft && (
