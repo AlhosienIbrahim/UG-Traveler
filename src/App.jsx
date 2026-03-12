@@ -139,6 +139,20 @@ function isJunkLine(line) {
   return JUNK_LINE_PATTERNS.some(rx => rx.test(trimmed));
 }
 
+// ══════════════════════════════════════════════════
+// أنماط تُضاف دائماً في الملاحظات (مش اسم ومش junk)
+// ══════════════════════════════════════════════════
+const NOTES_LINE_PATTERNS = [
+  /(?:ميعاد|معاد|موعد)/i,
+  /^(?:اول|ثاني|ثالث|رابع|خامس|سادس|سابع|ثامن|تاسع|عاشر)\s*(?:ميعاد|معاد|موعد|رحله|رحلة)/i,
+  /^(?:رحلة|رحله)\s+(?:اول|ثاني|ثالث|صبح|مساء|أولى|اولى)/i,
+];
+
+function isNotesLine(line) {
+  return NOTES_LINE_PATTERNS.some(rx => rx.test(line.trim()));
+}
+
+
 const STOP_PHRASES = [
   'رقم التليفون','رقم الموبايل','رقم الهاتف','رقم المحمول',
   'رقم تليفوني','رقم تلفوني','رقم موبايلي','رقم موبيلي',
@@ -170,6 +184,14 @@ function preProcessLine(text) {
 
   // حذف أحرف Unicode غير مرئية (RLM, LRM, ZWNJ, ZWJ, إلخ)
   s = s.replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF]/g, '');
+
+  // ── حذف بادئات القوائم المرقمة ──
+  // "١- " / "1. " / "٢)" / "3- " / "أولاً:" إلخ
+  s = s.replace(/^[\s]*(?:[١-٩\d][٠-٩\d]?\s*[-.)]\s*|[١٢٣٤٥٦٧٨٩]\s*[-.)]\s*)/, '');
+
+  // ── حذف بادئات تسمية الحقول ──
+  // "الاسم: ..." / "رقم:" / "منطقة:" / "اسمه:" إلخ
+  s = s.replace(/^(?:الاسم|اسمه|اسمها|اسم|رقم|منطقه|المنطقه|منطقة|المنطقة|موقف|ركوب)\s*[:ـ]\s*/i, '');
 
   // "انا اسمي/اسمه X" → X
   s = s.replace(/(?:انا\s+)?(?:إسمي|اسمي|اسمه|اسمها|إسمه|اسمي\s+هو|اسمه\s+هو)\s*/gi, '');
@@ -371,18 +393,24 @@ function extractCleanName(text, phonesToRemove, regionsToRemove) {
    ARABIC TEXT NORMALIZER + FUZZY REGION FINDER
 ══════════════════════════════════════════════════ */
 
-// تطبيع النص العربي: إزالة ال، توحيد أشكال الحروف المتشابهة
+// تطبيع النص العربي — مع cache لتجنّب إعادة الحساب
+const _normCache = new Map();
 function arNorm(str) {
-  // حذف ال من بداية كل كلمة عربية (بديل آمن بدون lookbehind)
-  const words = str.split(/\s+/);
-  const cleaned = words.map(w => w.replace(/^ال(?=[\u0600-\u06FF])/, ''));
-  return cleaned.join(' ')
+  let r = _normCache.get(str);
+  if (r !== undefined) return r;
+  r = str
+    .split(/\s+/)
+    .map(w => w.replace(/^ال(?=[\u0600-\u06FF])/, ''))
+    .join(' ')
     .replace(/[أإآا]/g, 'ا')
     .replace(/ة/g, 'ه')
     .replace(/ى/g, 'ي')
     .replace(/[ًٌٍَُِّْ]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
+  if (_normCache.size > 4000) _normCache.clear();
+  _normCache.set(str, r);
+  return r;
 }
 
 // Levenshtein distance بين كلمتين
@@ -418,126 +446,158 @@ function normIncludes(haystack, needle) {
   return nh.includes(nn);
 }
 
-/* ── Region finder: يرجع { region, matchedText } ──
-   matchedText = الكلمة/العبارة الفعلية اللي المستخدم كتبها في الرسالة
-   عشان تتحذف صح من الاسم لاحقاً                               */
-function findRegion(text, regions) {
-  const active = [...regions].filter(r => r.active).sort((a, b) => b.name.length - a.name.length);
+/* ══════════════════════════════════════════════════
+   REGION INDEX — يُبنى مرة واحدة عند تغيّر المناطق
+   بدل ما findRegion تمشي على كل المناطق كل سطر
+══════════════════════════════════════════════════ */
+let _rIdx = null, _rIdxSig = '';
 
-  // ① word-overlap scoring: كل منطقة تاخد نقطة لكل كلمة من اسمها موجودة في النص
-  //   المطابقة على حدود الكلمة (word-boundary) — مش substring داخل كلمة أكبر
-  //   للمناطق ذات 3+ كلمات مميزة: لازم يتطابق 2+ كلمة (تجنّب مطابقة أسماء أشخاص)
-  //   عند التعادل: exact match تكسب (اسم أقصر مكتمل في النص)
-  {
-    const textNorm = arNorm(text);
-    const textWords = new Set(textNorm.split(/\s+/)); // كلمات النص كـ set للبحث السريع
-    let overlapBest = null, overlapScore = 0, overlapExact = false;
-    for (const r of active) {
-      const rWords = r.name.split(/\s+/).filter(w => w.length > 1);
-      const meaningfulWords = rWords.filter(w => arNorm(w).length > 2);
-      // الكلمات اللي بتشارك في الـ score: لازم 3+ حروف بعد التطبيع (تجنّب "في"، "من"، "به"...)
-      const scoringWords = rWords.filter(w => arNorm(w).length >= 3);
-      const score = scoringWords.filter(w => textWords.has(arNorm(w))).length;
-      const isExact = text.includes(r.name) || arNorm(text).includes(arNorm(r.name));
-      if (score === 0) continue;
-      if (meaningfulWords.length >= 3 && score < 2 && !isExact) continue;
-      const ratio = meaningfulWords.length > 0 ? score / meaningfulWords.length : 1;
-      if (meaningfulWords.length >= 2 && ratio < 0.34 && !isExact) continue;
-      const better = score > overlapScore
-        || (score === overlapScore && isExact && !overlapExact)
-        || (score === overlapScore && isExact && overlapExact && r.name.length < (overlapBest?.name.length || Infinity));
-      if (better) { overlapScore = score; overlapBest = r; overlapExact = isExact; }
-    }
-    if (overlapBest) return { region: overlapBest, matchedText: overlapBest.name };
-  }
+function getRegionIndex(regions) {
+  const sig = regions.map(r => r.id + (r.active ? '1' : '0')).join('');
+  if (sig === _rIdxSig && _rIdx) return _rIdx;
 
-  // ② مطابقة تامة بعد التطبيع — نبحث عن أطول كلمة/عبارة في الرسالة تطابق المنطقة بعد التطبيع
-  const normText = arNorm(text);
-  const normTextWords = new Set(normText.split(/\s+/));
-  const normMap = {};   // normWord → originalWord
-  text.split(/\s+/).forEach(w => { const c = w.replace(/[^\u0600-\u06FF]/g, ''); if (c) normMap[arNorm(c)] = c; });
+  const active = regions
+    .filter(r => r.active)
+    .sort((a, b) => b.name.length - a.name.length);
+
+  // byNorm: normName → region (للمطابقة الكاملة)
+  const byNorm = new Map();
+  // byWord: normWord → region[] (للمطابقة بالكلمة - inverted index)
+  const byWord = new Map();
 
   for (const r of active) {
+    const norm = arNorm(r.name);
+    byNorm.set(norm, r);
+    for (const w of norm.split(/\s+/)) {
+      if (w.length >= 3) {
+        if (!byWord.has(w)) byWord.set(w, []);
+        byWord.get(w).push(r);
+      }
+    }
+  }
+
+  _rIdx = { active, byNorm, byWord };
+  _rIdxSig = sig;
+  return _rIdx;
+}
+
+/* ── Region finder: يرجع { region, matchedText } ──
+   matchedText = الكلمة/العبارة الفعلية اللي المستخدم كتبها
+   عشان تتحذف صح من الاسم لاحقاً                        */
+function findRegion(text, regions) {
+  const { active, byNorm, byWord } = getRegionIndex(regions);
+  if (!active.length) return null;
+
+  const textNorm = arNorm(text);
+  const textWords = textNorm.split(/\s+/);
+  const textWordSet = new Set(textWords);
+
+  // ① مطابقة تامة بالكامل (O(1))
+  if (byNorm.has(textNorm)) {
+    const r = byNorm.get(textNorm);
+    return { region: r, matchedText: r.name };
+  }
+
+  // ② مطابقة substring بعد التطبيع — أطول منطقة أولاً
+  for (const r of active) {
     const rNorm = arNorm(r.name);
-    const rNormWords = rNorm.split(/\s+/);
-    // للمناطق أحادية الكلمة: تحقق word-boundary
-    // للمناطق متعددة الكلمات: substring كافي (الترتيب مهم)
-    const found = rNormWords.length === 1
-      ? normTextWords.has(rNorm)
-      : normText.includes(rNorm);
+    const rWords = rNorm.split(/\s+/);
+    const found = rWords.length === 1
+      ? textWordSet.has(rNorm)
+      : textNorm.includes(rNorm);
     if (found) {
-      const rWords = r.name.split(/\s+/).map(w => w.replace(/[^\u0600-\u06FF]/g, ''));
-      const matched = rWords.map(rw => normMap[arNorm(rw)] || rw).join(' ');
+      // استرجع النص الأصلي المكتوب
+      const normMap = {};
+      text.split(/\s+/).forEach(w => {
+        const c = w.replace(/[^\u0600-\u06FF]/g, '');
+        if (c) normMap[arNorm(c)] = c;
+      });
+      const matched = r.name.split(/\s+/)
+        .map(w => normMap[arNorm(w.replace(/[^\u0600-\u06FF]/g, ''))] || w)
+        .join(' ');
       return { region: r, matchedText: matched };
     }
   }
 
-  // ③ مطابقة جزئية: أطول تسلسل كلمات من الرسالة موجود داخل اسم المنطقة
-  const msgWords = text.split(/\s+/).map(w => w.replace(/[^\u0621-\u063A\u0641-\u064A\u0670\u067E\u0686\u0698\u06AF\u06CC\u06C1]/g, '')).filter(w => w.length > 1);
+  // ③ Word-overlap via inverted index (بدل O(regions×words) → O(textWords))
+  const scores = new Map(); // region → matchCount
+  for (const tw of textWordSet) {
+    if (tw.length < 3) continue;
+    for (const r of (byWord.get(tw) || [])) {
+      scores.set(r, (scores.get(r) || 0) + 1);
+    }
+  }
+
+  if (scores.size > 0) {
+    let best = null, bestScore = 0, bestExact = false;
+    for (const [r, score] of scores) {
+      const rNorm = arNorm(r.name);
+      const meaningful = rNorm.split(/\s+/).filter(w => w.length > 2).length;
+      const isExact = textNorm.includes(rNorm);
+      if (meaningful >= 3 && score < 2 && !isExact) continue;
+      const ratio = meaningful > 0 ? score / meaningful : 1;
+      if (meaningful >= 2 && ratio < 0.34 && !isExact) continue;
+      const better = score > bestScore
+        || (score === bestScore && isExact && !bestExact)
+        || (score === bestScore && isExact && bestExact && r.name.length < (best?.name.length || Infinity));
+      if (better) { bestScore = score; best = r; bestExact = isExact; }
+    }
+    if (best) return { region: best, matchedText: best.name };
+  }
+
+  // ④ مطابقة جزئية: أطول تسلسل كلمات من الرسالة موجود داخل اسم منطقة
+  const msgWords = text.split(/\s+/)
+    .map(w => w.replace(/[^\u0621-\u063A\u0641-\u064A\u0670\u067E\u0686\u0698\u06AF\u06CC\u06C1]/g, ''))
+    .filter(w => w.length > 1);
+
   let bPartial = null, bPartialPhrase = '', bPartialScore = 0;
   for (const r of active) {
-    const rMeaningfulWords = r.name.split(/\s+/).filter(w => arNorm(w).length > 2);
+    const rMeaningful = r.name.split(/\s+/).filter(w => arNorm(w).length > 2);
     for (let start = 0; start < msgWords.length; start++) {
       for (let len = msgWords.length - start; len >= 1; len--) {
-        // ③ الكلمة المفردة: تُعالج فقط لو المنطقة نفسها كلمة واحدة
-        //   (المناطق متعددة الكلمات تحتاج 2+ كلمات متطابقة هنا)
-        if (len === 1 && rMeaningfulWords.length >= 2) continue;
+        if (len === 1 && rMeaningful.length >= 2) continue;
         const phrase = msgWords.slice(start, start + len).join(' ');
-        // كلمة مفردة: لازم 4+ حروف على الأقل (تجنّب مطابقة حروف قصيرة)
         const minLen = len === 1 ? 4 : 3;
         if (phrase.length >= minLen && normIncludes(r.name, phrase)) {
-          // نسبة التغطية: عدد كلمات العبارة ÷ كلمات المنطقة المميزة
-          const coverageRatio = len / Math.max(rMeaningfulWords.length, 1);
-          // للمناطق ذات 3+ كلمات مميزة: لازم العبارة تغطي 40%+ من المنطقة
-          if (rMeaningfulWords.length >= 3 && coverageRatio < 0.4) break;
+          const coverageRatio = len / Math.max(rMeaningful.length, 1);
+          if (rMeaningful.length >= 3 && coverageRatio < 0.4) break;
           if (phrase.length > bPartialScore) {
             bPartialScore = phrase.length;
             bPartial = r;
             bPartialPhrase = phrase;
           }
-          break; // أطول تسلسل لهذا start وجدناه
+          break;
         }
       }
     }
   }
   if (bPartial) return { region: bPartial, matchedText: bPartialPhrase };
 
-  // ④ مطابقة fuzzy: Levenshtein على مستوى الكلمة
-  //   للمناطق متعددة الكلمات (2+): لازم 2+ كلمات تتطابق fuzzy (مش كلمة واحدة)
-  //   ده يمنع "ابراهيم" الاسم من الاتطابق مع "اخر ابراهيم نافع" أو "اول ابراهيم افع"
+  // ⑤ Fuzzy Levenshtein — آخر ملاذ، للكلمات الطويلة فقط
   let bFuzzy = null, bFuzzyWord = '', bFuzzyScore = 0;
   for (const r of active) {
     const rWords = r.name.split(/\s+/).filter(w => w.length > 3);
     const rMeaningful = r.name.split(/\s+/).filter(w => arNorm(w).length > 2);
-    // للمناطق متعددة الكلمات: احسب كم كلمة من الرسالة بتتطابق fuzzy مع كلمات المنطقة
     if (rMeaningful.length >= 2) {
-      const baseThreshold = 0.85;
-      let matchCount = 0;
-      let totalSim = 0;
+      let matchCount = 0, totalSim = 0;
       for (const mw of msgWords) {
         if (mw.length < 4) continue;
         for (const rw of rWords) {
           const sim = similarity(mw, rw);
-          if (sim >= baseThreshold) { matchCount++; totalSim += sim; break; }
+          if (sim >= 0.85) { matchCount++; totalSim += sim; break; }
         }
       }
-      // لازم 2+ كلمات تتطابق للمناطق متعددة الكلمات
       if (matchCount >= 2 && totalSim > bFuzzyScore) {
-        bFuzzyScore = totalSim;
-        bFuzzy = r;
-        bFuzzyWord = r.name;
+        bFuzzyScore = totalSim; bFuzzy = r; bFuzzyWord = r.name;
       }
     } else {
-      // منطقة كلمة واحدة: الطريقة الأصلية
       for (const mw of msgWords) {
         if (mw.length < 4) continue;
         for (const rw of rWords) {
           const sim = similarity(mw, rw);
           const threshold = rw.length >= 6 ? 0.80 : 0.88;
           if (sim >= threshold && sim > bFuzzyScore) {
-            bFuzzyScore = sim;
-            bFuzzy = r;
-            bFuzzyWord = mw;
+            bFuzzyScore = sim; bFuzzy = r; bFuzzyWord = mw;
           }
         }
       }
@@ -594,8 +654,7 @@ function classifyLine(line, regions) {
 
 /* ── Multiline block parser: one person per name line ── */
 function parseMultilineBlocks(raw, regions) {
-  // أولاً: شقق كل سطر فيه '+' (فاصل أشخاص) لـ sub-lines
-  // استثناء: '+' في أرقام دولية (+20...) مش فاصل
+  // شقق كل سطر فيه '+' (فاصل أشخاص) لـ sub-lines
   const expandedLines = [];
   raw.split(/\n/).forEach(line => {
     const t = line.trim();
@@ -608,11 +667,20 @@ function parseMultilineBlocks(raw, regions) {
   });
 
   const lines = expandedLines;
-  if (lines.length < 2) return null; // not multiline
+  if (lines.length < 2) return null;
 
   const classified = lines.map(l => classifyLine(l, regions));
 
-  // Build person blocks: new person starts when we hit a name line
+  // ── تحليل السياق العام للرسالة كلها ──
+  // لو في رقم واحد بس في الرسالة كلها → مشترك بين كل الركاب
+  const allPhones = classified.map(c => c.phone).filter(Boolean);
+  const allRegions = classified.map(c => c.region).filter(Boolean);
+  const globalPhone = allPhones.length === 1 ? allPhones[0] : '';
+  // المنطقة العامة: لو كل المناطق المذكورة نفسها، أو في منطقة واحدة بس
+  const uniqueRegions = [...new Map(allRegions.map(r => [r.id, r])).values()];
+  const globalRegion = uniqueRegions.length === 1 ? uniqueRegions[0] : null;
+
+  // Build person blocks
   const blocks = [];
   let cur = null;
 
@@ -621,14 +689,24 @@ function parseMultilineBlocks(raw, regions) {
     const hasPhone = !!cl.phone;
     const hasRegion = !!cl.region;
     const isMixed = (hasName && (hasPhone || hasRegion)) || (hasPhone && hasRegion);
-
-    // لو الـ block الحالي مكتمل (اسم + رقم) → أي سطر اسم جديد يروح notes
     const curComplete = cur && cur.name && cur.phone;
+
+    // ── سطر ملاحظات (ميعاد/موعد/رحلة) → notes فوراً ──
+    if (isNotesLine(lines[i])) {
+      if (cur) cur.notes = [cur.notes, lines[i].trim()].filter(Boolean).join(' ، ');
+      return;
+    }
 
     if (isMixed) {
       if (curComplete) {
-        // مثلاً "ميعاد اول" بعد block مكتمل → notes
-        cur.notes = [cur.notes, lines[i].trim()].filter(Boolean).join(' ، ');
+        // لو الجزء الاسمي يشبه راكب جديد والجزء التاني رقم → راكب جديد
+        if (hasName && hasPhone && cl.nameStr) {
+          blocks.push(cur);
+          cur = { name: cl.nameStr, phone: cl.phone, region: cl.region || cur.region || null, notes: '' };
+          blocks.push(cur); cur = null;
+        } else {
+          cur.notes = [cur.notes, lines[i].trim()].filter(Boolean).join(' ، ');
+        }
       } else {
         if (cur) blocks.push(cur);
         cur = { name: cl.nameStr || '', phone: cl.phone || '', region: cl.region || null, notes: '' };
@@ -636,8 +714,14 @@ function parseMultilineBlocks(raw, regions) {
       }
     } else if (cl.type === 'name' && cl.value) {
       if (curComplete) {
-        // اسم بعد block مكتمل → notes
-        cur.notes = [cur.notes, lines[i].trim()].filter(Boolean).join(' ، ');
+        // look-ahead: لو السطر اللي بعده (أو التاني) فيه رقم → راكب جديد يرث المنطقة
+        const nextHasPhone = classified.slice(i + 1, i + 3).some(nc => nc.phone);
+        if (nextHasPhone) {
+          blocks.push(cur);
+          cur = { name: cl.value, phone: '', region: cur.region || null, notes: '' };
+        } else {
+          cur.notes = [cur.notes, lines[i].trim()].filter(Boolean).join(' ، ');
+        }
       } else {
         if (cur) blocks.push(cur);
         cur = { name: cl.value, phone: '', region: null, notes: '' };
@@ -650,39 +734,36 @@ function parseMultilineBlocks(raw, regions) {
       if (!cur) cur = { name: '', phone: '', region: cl.value, notes: '' };
       else cur.region = cl.value;
     } else if (cl.type === 'empty' && cur && lines[i].trim()) {
-      // سطر مش فاضي بس ما اتعرفش → notes
-      const raw = lines[i].trim();
-      if (raw) cur.notes = [cur.notes, raw].filter(Boolean).join(' ، ');
+      cur.notes = [cur.notes, lines[i].trim()].filter(Boolean).join(' ، ');
     }
   });
   if (cur) blocks.push(cur);
 
-  // توزيع الرقم/المنطقة المشتركة
+  // ── توزيع السياق المشترك على كل الركاب ──
+  // الأولوية: ما عنده بالفعل > الموروث من الراكب السابق > المشترك العام
   if (blocks.length > 0) {
-    const lastPhone = classified.slice().reverse().find(cl => cl.phone)?.phone || '';
-    const lastRegion = classified.slice().reverse().find(cl => cl.region)?.region || null;
-    blocks.forEach(b => {
-      if (!b.phone && lastPhone) b.phone = lastPhone;
-      if (!b.region && lastRegion) b.region = lastRegion;
-    });
+    // phone: لو فيه رقم مشترك واحد → كله يأخذه
+    // region: لو فيه منطقة مشتركة → كله يأخذها
+    // لو في راكب عنده منطقة → الراكب اللي بعده (بدون منطقة) يرثها
+    let inheritedRegion = globalRegion;
+    for (const b of blocks) {
+      if (!b.phone && globalPhone) b.phone = globalPhone;
+      if (!b.region) b.region = inheritedRegion;
+      if (b.region) inheritedRegion = b.region; // الراكب الجديد يرث منطقة السابق
+    }
   }
 
-  // حذف الـ blocks اللي اسمها فاضي — هي بتكون سطر رقم/منطقة مشتركة وليست راكب
+  // حذف الـ blocks الفارغة من اسم
   const validBlocks = blocks.filter(b => b.name && b.name.trim());
-  // لو كل الـ blocks اتحذفوا (ما فيش اسم خالص) نرجع null عشان الـ parser العادي يتعامل معه
   if (validBlocks.length === 0) return null;
-  blocks.length = 0;
-  validBlocks.forEach(b => blocks.push(b));
 
-  // If only one block and it's a simple one-liner, let original parser handle
-  if (blocks.length <= 1 && lines.length <= 1) return null;
-  return blocks.length > 0 ? blocks : null;
+  if (validBlocks.length <= 1 && lines.length <= 1) return null;
+  return validBlocks.length > 0 ? validBlocks : null;
 }
 
 /* ── Person segmenter ── */
 function splitPersonSegments(raw) {
   // ── Rule 1: '+' كـ فاصل بين أشخاص — لكن مش "+" في أرقام دولية (+20...)
-  //   نبحث عن '+' مش متبوع برقم دولي
   const plusParts = raw.split(/\+(?!\d{10,}|\s*20)/);
   if (plusParts.length > 1 && plusParts.every(p => p.trim())) {
     return plusParts.map(s => s.trim()).filter(Boolean);
@@ -694,7 +775,29 @@ function splitPersonSegments(raw) {
     return [raw.slice(0, idx).trim(), raw.slice(idx).trim()].filter(Boolean);
   }
 
-  // ── Rule 3: ' و ' — الجزء الأيسر من كل و لازم يكون اسم نظيف
+  // ── Rule 3: '/' أو '|' كفاصل بين أشخاص ──
+  // شرط: لو النص مش رقم تليفون وكل الأجزاء عبارة عن أسماء/معلومات
+  // استثناء: "/" في أسماء المناطق مثل "دوران النهضة / كشك حمزة"
+  const slashParts = raw.split(/\s*[\/|]\s*/);
+  if (slashParts.length > 1) {
+    // نتحقق: الأجزاء ليست اسم منطقة واحدة بها "/"
+    const looksLikePeople = slashParts.every(p => {
+      const t = p.trim();
+      if (!t) return false;
+      // جزء فيه رقم → جائز (آخر جزء بيكون فيه الرقم المشترك)
+      if (/0[12]\d{9}/.test(t)) return true;
+      // جزء عبارة عن كلمات عربية فقط (2-5 كلمات)
+      const words = t.replace(/[^\u0600-\u06FF\s]/g, '').trim().split(/\s+/).filter(Boolean);
+      return words.length >= 1 && words.length <= 5;
+    });
+    // لازم 3+ أجزاء أو جزءان وأحدهما فيه رقم
+    const hasPhone = slashParts.some(p => /0[12]\d{9}/.test(p));
+    if (looksLikePeople && (slashParts.length >= 3 || (slashParts.length === 2 && hasPhone))) {
+      return slashParts.map(s => s.trim()).filter(Boolean);
+    }
+  }
+
+  // ── Rule 4: ' و ' — الجزء الأيسر من كل و لازم يكون اسم نظيف
   const isCleanNameSeg = seg => {
     PHONE_RX.lastIndex = 0;
     if (PHONE_RX.test(seg)) return false;
