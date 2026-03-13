@@ -21,103 +21,103 @@ const DEFAULT_REGIONS = [
 
 const STOP_WORDS = new Set([
   // ── ضمائر ──
-  'انا', 'انأ', 'أنا', 'هو', 'هي', 'هم', 'هن', 'احنا', 'إحنا', 'نحن',
-  'انتا', 'انتي', 'انت', 'أنت', 'انتم',
-  'ده', 'دي', 'دول', 'ديل', 'هاده', 'هاي',
+  'انا','انأ','أنا','هو','هي','هم','هن','احنا','إحنا','نحن',
+  'انتا','انتي','انت','أنت','انتم',
+  'ده','دي','دول','ديل','هاده','هاي',
 
   // ── أدوات وحروف ──
-  'من', 'في', 'على', 'الى', 'إلى', 'عن', 'عند', 'لو', 'يا',
-  'و', 'او', 'أو', 'ف', 'ب', 'ل', 'ك', 'إن', 'ان', 'لان', 'لأن',
-  'مع', 'مش', 'مو', 'زي', 'بس', 'كمان', 'برضو', 'برضه', 'لكن', 'لكين',
-  'تمام', 'ماشي', 'اوك', 'اوكي', 'ياريت', 'يعني', 'يلا', 'خلاص', 'حسنا',
-  'ايوه', 'اه', 'اوه', 'اوكيه', 'اهه',
+  'من','في','على','الى','إلى','عن','عند','لو','يا',
+  'و','او','أو','ف','ب','ل','ك','إن','ان','لان','لأن',
+  'مع','مش','مو','زي','بس','كمان','برضو','برضه','لكن','لكين',
+  'تمام','ماشي','اوك','اوكي','ياريت','يعني','يلا','خلاص','حسنا',
+  'ايوه','اه','اوه','اوكيه','اهه',
 
   // ── ألقاب (تُحذف من الأسماء) ──
-  'دكتور', 'دكتوره', 'دكتورة', 'دكتور', 'دكتورة',
-  'مهندس', 'مهندسة', 'مهندسه',
-  'أستاذ', 'استاذ', 'أستاذة', 'استاذة', 'الاستاذ', 'الأستاذ',
-  'حاج', 'حاجه', 'حاجة', 'الحاج', 'الحاجة',
-  'انسة', 'آنسة', 'انسه',
-  'السيد', 'السيده', 'السيدة',
-  'بروفيسور', 'بروف',
-  'معلم', 'معلمة', 'معلمه',
+  'دكتور','دكتوره','دكتورة','دكتور','دكتورة',
+  'مهندس','مهندسة','مهندسه',
+  'أستاذ','استاذ','أستاذة','استاذة','الاستاذ','الأستاذ',
+  'حاج','حاجه','حاجة','الحاج','الحاجة',
+  'انسة','آنسة','انسه',
+  'السيد','السيده','السيدة',
+  'بروفيسور','بروف',
+  'معلم','معلمة','معلمه',
 
   // ── أفعال ركوب وحضور ──
-  'ومعايا', 'معايا', 'معايه', 'هنركب', 'هنركبوا', 'هنركبوه',
-  'يركب', 'بيركب', 'هركب', 'هيركب', 'بيركبوا', 'هيركبوا',
-  'ركوب', 'ركب', 'ركبت', 'هاركب',
-  'هاييجي', 'هاجي', 'هاروح', 'هروح', 'جاي', 'رايح',
-  'هجي', 'بجي', 'بييجي', 'هييجي',
+  'ومعايا','معايا','معايه','هنركب','هنركبوا','هنركبوه',
+  'يركب','بيركب','هركب','هيركب','بيركبوا','هيركبوا',
+  'ركوب','ركب','ركبت','هاركب',
+  'هاييجي','هاجي','هاروح','هروح','جاي','رايح',
+  'هجي','بجي','بييجي','هييجي',
 
   // ── صاحب / رفيق ──
-  'صاحبي', 'صاحبتي', 'صاحبه', 'صديقي', 'صديقتي', 'رفيقي', 'رفيقتي',
-  'زميلي', 'زميلتي', 'اخويا', 'اختي',
+  'صاحبي','صاحبتي','صاحبه','صديقي','صديقتي','رفيقي','رفيقتي',
+  'زميلي','زميلتي','اخويا','اختي',
 
   // ── مشتقات "اسم" ──
-  'اسم', 'الاسم', 'إسم', 'الإسم',
-  'اسمي', 'اسمه', 'اسمها', 'اسمهم', 'اسمك', 'اسمنا', 'اسمو',
-  'إسمي', 'إسمه', 'إسمها', 'إسمك',
-  'بيتسمي', 'بتتسمي', 'اتسمي', 'يتسمى', 'تتسمى', 'يسمى', 'تسمى',
+  'اسم','الاسم','إسم','الإسم',
+  'اسمي','اسمه','اسمها','اسمهم','اسمك','اسمنا','اسمو',
+  'إسمي','إسمه','إسمها','إسمك',
+  'بيتسمي','بتتسمي','اتسمي','يتسمى','تتسمى','يسمى','تسمى',
 
   // ── مشتقات "رقم" ──
-  'رقم', 'الرقم', 'رقمي', 'رقمه', 'رقمها', 'رقمنا', 'رقمهم', 'رقمك',
-  'ورقمي', 'ورقمه', 'ورقمها', 'رقمو',
-  'نمرتي', 'نمرته', 'نمرتها', 'نمره', 'نمرة', 'النمرة', 'النمره',
+  'رقم','الرقم','رقمي','رقمه','رقمها','رقمنا','رقمهم','رقمك',
+  'ورقمي','ورقمه','ورقمها','رقمو',
+  'نمرتي','نمرته','نمرتها','نمره','نمرة','النمرة','النمره',
 
   // ── تليفون / موبايل / هاتف ──
-  'تليفون', 'التليفون', 'تليفوني', 'تليفونه', 'تليفونها', 'تليفونهم',
-  'تلفون', 'التلفون', 'تلفوني', 'تلفونه', 'تلفونها',
-  'موبايل', 'الموبايل', 'موبايلي', 'موبايله', 'موبايلها', 'موبايلهم',
-  'موبيل', 'الموبيل', 'موبيلي', 'موبيله', 'موبيلها',
-  'هاتف', 'الهاتف', 'هاتفي', 'هاتفه', 'هاتفها',
-  'خط', 'الخط', 'خطي', 'خطه', 'خطها',
-  'نت', 'واتساب', 'واتس', 'وتساب',
+  'تليفون','التليفون','تليفوني','تليفونه','تليفونها','تليفونهم',
+  'تلفون','التلفون','تلفوني','تلفونه','تلفونها',
+  'موبايل','الموبايل','موبايلي','موبايله','موبايلها','موبايلهم',
+  'موبيل','الموبيل','موبيلي','موبيله','موبيلها',
+  'هاتف','الهاتف','هاتفي','هاتفه','هاتفها',
+  'خط','الخط','خطي','خطه','خطها',
+  'نت','واتساب','واتس','وتساب',
 
   // ── منطقة / مكان ──
-  'منطقة', 'المنطقة', 'منطقتي', 'منطقته', 'منطقتها', 'منطقه', 'المنطقه',
-  'مكان', 'المكان', 'مكاني', 'مكانه', 'مكانها',
-  'موقف', 'الموقف', 'موقفي', 'موقفه',
-  'موقع', 'الموقع', 'موقعي', 'موقعه',
-  'ناحية', 'الناحية', 'ناحيه', 'الناحيه',
-  'جهة', 'الجهة', 'جهتي', 'جهته', 'جهه', 'الجهه',
-  'قدام', 'امام', 'أمام', 'قريب', 'جنب', 'هناك', 'هنا',
-  'بره', 'جوه', 'فوق', 'تحت', 'ورا', 'قبل', 'بعد',
+  'منطقة','المنطقة','منطقتي','منطقته','منطقتها','منطقه','المنطقه',
+  'مكان','المكان','مكاني','مكانه','مكانها',
+  'موقف','الموقف','موقفي','موقفه',
+  'موقع','الموقع','موقعي','موقعه',
+  'ناحية','الناحية','ناحيه','الناحيه',
+  'جهة','الجهة','جهتي','جهته','جهه','الجهه',
+  'قدام','امام','أمام','قريب','جنب','هناك','هنا',
+  'بره','جوه','فوق','تحت','ورا','قبل','بعد',
 
   // ── ركوب / نقطة ──
-  'نقطة', 'النقطة', 'نقطه', 'النقطه',
-  'محطة', 'المحطة', 'محطه', 'المحطه',
+  'نقطة','النقطة','نقطه','النقطه',
+  'محطة','المحطة','محطه','المحطه',
 
   // ── بتاع / عندي ──
-  'بتاع', 'بتاعت', 'بتاعي', 'بتاعه', 'بتاعها',
-  'عندي', 'عنده', 'عندها', 'عندنا',
-  'عايز', 'عايزة', 'عاوز', 'عاوزة', 'محتاج', 'محتاجه',
-  'ليا', 'ليه', 'ليها',
+  'بتاع','بتاعت','بتاعي','بتاعه','بتاعها',
+  'عندي','عنده','عندها','عندنا',
+  'عايز','عايزة','عاوز','عاوزة','محتاج','محتاجه',
+  'ليا','ليه','ليها',
 
   // ── بقايا "ال" بعد حذف أسماء مناطق ──
-  'ال', 'وال', 'بال', 'لل', 'فال',
+  'ال','وال','بال','لل','فال',
 
   // ── كلمات طلب / رغبة ──
-  'عايز', 'عايزة', 'عاوز', 'عاوزة', 'عوز', 'عوزة',
-  'محتاج', 'محتاجة', 'محتاجه',
-  'نفسي', 'نفسه', 'نفسها',
-  'ابي', 'ابغى', 'ابغ', 'بدي',
-  'اريد', 'يريد', 'تريد', 'نريد', 'اريده',
-  'طلبي', 'طلبه', 'طلبها',
+  'عايز','عايزة','عاوز','عاوزة','عوز','عوزة',
+  'محتاج','محتاجة','محتاجه',
+  'نفسي','نفسه','نفسها',
+  'ابي','ابغى','ابغ','بدي',
+  'اريد','يريد','تريد','نريد','اريده',
+  'طلبي','طلبه','طلبها',
 ]);
 
 // ══════════════════════════════════════════════════
 // جمل تُتجاهل تماماً كسطر كامل
 // ══════════════════════════════════════════════════
 const JUNK_LINE_PATTERNS = [
-  /السلام عليكم/, /عليكم السلام/, /وعليكم السلام/,
-  /صباح الخير/, /صباح النور/, /مساء الخير/, /مساء النور/,
-  /صباح الفل/, /صباح الورد/, /مساء الورد/, /مساء الفل/,
-  /أهلاً/, /اهلا/, /أهلا وسهلا/, /اهلا وسهلا/,
-  /مرحبا/, /مرحباً/, /هلو/, /هاي/, /هاى/,
-  /ازيك/, /ازيكم/, /عامل إيه/, /عاملين ايه/, /ايه الاخبار/,
-  /حاضر/, /تمام شكراً/, /شكراً جزيلاً/, /شكرا جزيلا/,
-  /جزاكم الله/, /بارك الله/, /الله يبارك/, /جزاك الله/,
-  /ربنا يوفقكم/, /ربنا يوفقك/, /ياريت تسجلوني/,
+  /السلام عليكم/,/عليكم السلام/,/وعليكم السلام/,
+  /صباح الخير/,/صباح النور/,/مساء الخير/,/مساء النور/,
+  /صباح الفل/,/صباح الورد/,/مساء الورد/,/مساء الفل/,
+  /أهلاً/,/اهلا/,/أهلا وسهلا/,/اهلا وسهلا/,
+  /مرحبا/,/مرحباً/,/هلو/,/هاي/,/هاى/,
+  /ازيك/,/ازيكم/,/عامل إيه/,/عاملين ايه/,/ايه الاخبار/,
+  /حاضر/,/تمام شكراً/,/شكراً جزيلاً/,/شكرا جزيلا/,
+  /جزاكم الله/,/بارك الله/,/الله يبارك/,/جزاك الله/,
+  /ربنا يوفقكم/,/ربنا يوفقك/,/ياريت تسجلوني/,
   /(?:لو سمحت|لو سمحتوا|من فضلك|من فضلكم)\s*(?:تسجيل|تسجلوني|تسجلني|ضيفني|ضيفوني|حجزلي|احجزلي|اضيفوني)/,
   /(?:عايز|عايزة|عاوز|عاوزة|محتاج|محتاجة)\s*(?:اتسجل|اتضاف|احجز|اركب)/,
   /(?:ممكن|ينفع|يمكن)\s*(?:تسجيلي|تسجلني|تضيفني|احجزلي)/,
@@ -142,10 +142,13 @@ function isJunkLine(line) {
 // ══════════════════════════════════════════════════
 // أنماط تُضاف دائماً في الملاحظات (مش اسم ومش junk)
 // ══════════════════════════════════════════════════
+const _ORD = '(?:اول|أول|أولى|اولى|ثاني|ثانى|ثالث|رابع|خامس|سادس|سابع|ثامن|تاسع|عاشر|[١-٩]|[1-9])';
 const NOTES_LINE_PATTERNS = [
-  /(?:ميعاد|معاد|موعد)/i,
-  /^(?:اول|ثاني|ثالث|رابع|خامس|سادس|سابع|ثامن|تاسع|عاشر)\s*(?:ميعاد|معاد|موعد|رحله|رحلة)/i,
-  /^(?:رحلة|رحله)\s+(?:اول|ثاني|ثالث|صبح|مساء|أولى|اولى)/i,
+  // ميعاد/موعد + رقم ترتيبي اختياري (قبله أو بعده)
+  new RegExp('(?:' + _ORD + '\\s+)?(?:ميعاد|معاد|موعد)(?:\\s+' + _ORD + ')?', 'i'),
+  // الترتيبي أولاً ثم الكلمة
+  /^(?:اول|أول|ثاني|ثالث|رابع|خامس|سادس|سابع|ثامن|تاسع|عاشر)\s*(?:ميعاد|معاد|موعد|رحله|رحلة)/i,
+  /^(?:رحلة|رحله)\s+(?:اول|أول|ثاني|ثالث|صبح|مساء|أولى|اولى)/i,
 ];
 
 function isNotesLine(line) {
@@ -153,26 +156,33 @@ function isNotesLine(line) {
 }
 
 
+// أسماء عربية شائعة تبدأ بحرف الواو — تُستثنى من كسر واو الكونجنكشن
+const WAAW_NAMES = new Set([
+  'وليد','وائل','وسام','وفاء','وحيد','وصفي','وجدي','وجيه','وضاح','وديع',
+  'وهيب','وهبي','ودود','وفيق','وردة','ورد','وميض','وداد','وصال','وفية',
+  'وهاب','وليده','وليدة',
+]);
+
 const STOP_PHRASES = [
-  'رقم التليفون', 'رقم الموبايل', 'رقم الهاتف', 'رقم المحمول',
-  'رقم تليفوني', 'رقم تلفوني', 'رقم موبايلي', 'رقم موبيلي',
-  'رقم تليفونه', 'رقم موبايله', 'رقم هاتفه',
-  'رقم تليفونها', 'رقم موبايلها',
-  'رقمي هو', 'رقمه هو', 'رقمها هو',
-  'ورقمي هو', 'وده رقمي', 'وده رقمه', 'وده رقمها',
-  'الرقم بتاعي', 'الرقم بتاعه', 'الرقم بتاعها',
-  'نمرة تليفوني', 'نمرة موبايلي', 'نمرتي هي',
-  'اسمي هو', 'اسمه هو', 'اسمها هو', 'اسمي بقى',
-  'انا اسمي', 'هو اسمه', 'هي اسمها',
-  'بيتسمى', 'بتتسمى',
-  'هنركب من', 'هركب من', 'بركب من', 'بيركب من',
-  'موقف الركوب', 'نقطة الركوب', 'نقطه الركوب',
-  'مكان الركوب', 'محطة الركوب',
-  'عند منطقة', 'من منطقة', 'في منطقة',
-  'من عند', 'من قدام', 'من امام', 'من أمام',
-  'هنقف عند', 'هنركب من عند',
+  'رقم التليفون','رقم الموبايل','رقم الهاتف','رقم المحمول',
+  'رقم تليفوني','رقم تلفوني','رقم موبايلي','رقم موبيلي',
+  'رقم تليفونه','رقم موبايله','رقم هاتفه',
+  'رقم تليفونها','رقم موبايلها',
+  'رقمي هو','رقمه هو','رقمها هو',
+  'ورقمي هو','وده رقمي','وده رقمه','وده رقمها',
+  'الرقم بتاعي','الرقم بتاعه','الرقم بتاعها',
+  'نمرة تليفوني','نمرة موبايلي','نمرتي هي',
+  'اسمي هو','اسمه هو','اسمها هو','اسمي بقى',
+  'انا اسمي','هو اسمه','هي اسمها',
+  'بيتسمى','بتتسمى',
+  'هنركب من','هركب من','بركب من','بيركب من',
+  'موقف الركوب','نقطة الركوب','نقطه الركوب',
+  'مكان الركوب','محطة الركوب',
+  'عند منطقة','من منطقة','في منطقة',
+  'من عند','من قدام','من امام','من أمام',
+  'هنقف عند','هنركب من عند',
   // ألقاب مركبة
-  'دكتور مهندس', 'الدكتور', 'المهندس', 'الاستاذ', 'الأستاذ',
+  'دكتور مهندس','الدكتور','المهندس','الاستاذ','الأستاذ',
 ];
 
 /* ══════════════════════════════════════════════
@@ -356,7 +366,7 @@ function extractCleanName(text, phonesToRemove, regionsToRemove) {
     // أ. حذف الاسم الكامل كـ string (exact + matchedText)
     //    نبدأ بـ "ال" + الاسم عشان نشيل المعرّف قبل الاسم المجرد
     const escName = (r.name || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const escMT = (r.matchedText || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const escMT   = (r.matchedText || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     if (escName) {
       s = s.replace(new RegExp('ال' + escName, 'g'), ' ');
       s = s.replace(new RegExp(escName, 'g'), ' ');
@@ -365,15 +375,28 @@ function extractCleanName(text, phonesToRemove, regionsToRemove) {
       s = s.replace(new RegExp('ال' + escMT, 'g'), ' ');
       s = s.replace(new RegExp(escMT, 'g'), ' ');
     }
-    // ب. حذف كل كلمة من كلمات المنطقة كلمة كلمة (يتعامل مع ة/ه، ال، الخ)
+    // ب. حذف كل كلمة من كلمات المنطقة كلمة كلمة (exact + fuzzy للتعامل مع أخطاء الإملاء)
     const rWordNorms = (r.name || '').split(/\s+/).filter(w => w.length > 1).map(arNorm);
     s = s.split(/\s+/).filter(sw => {
       const swClean = sw.replace(/[^\u0621-\u063A\u0641-\u064A\u0670\u067E\u0686\u0698\u06AF\u06CC\u06C1]/g, '');
-      return !swClean || !rWordNorms.includes(arNorm(swClean));
+      if (!swClean) return false;
+      const swNorm = arNorm(swClean);
+      // exact match
+      if (rWordNorms.includes(swNorm)) return false;
+      // fuzzy: لو الكلمة أطول من 3 أحرف وتشابهها مع كلمة في المنطقة >= 0.80
+      if (swClean.length >= 4) {
+        for (const rw of rWordNorms) {
+          if (rw.length >= 4 && similarity(swNorm, rw) >= 0.80) return false;
+        }
+      }
+      return true;
     }).join(' ');
   });
 
-  // 3. حذف العبارات المركبة + جمل التحية والطلبات
+  // 3. حذف أنماط الملاحظات (ميعاد/موعد/رحلة) من داخل السطر
+  NOTES_LINE_PATTERNS.forEach(rx => { s = s.replace(rx, ' '); });
+
+  // حذف العبارات المركبة + جمل التحية والطلبات
   STOP_PHRASES.forEach(ph => { s = s.replace(new RegExp(ph, 'g'), ' '); });
   JUNK_LINE_PATTERNS.forEach(rx => { s = s.replace(rx, ' '); });
 
@@ -468,7 +491,8 @@ function getRegionIndex(regions) {
   for (const r of active) {
     const norm = arNorm(r.name);
     byNorm.set(norm, r);
-    for (const w of norm.split(/\s+/)) {
+    // حذف الرموز غير العربية (مثل "/") قبل تقطيع الكلمات
+    for (const w of norm.replace(/[^\u0600-\u06FF\s]/g, ' ').split(/\s+/)) {
       if (w.length >= 3) {
         if (!byWord.has(w)) byWord.set(w, []);
         byWord.get(w).push(r);
@@ -498,24 +522,27 @@ function findRegion(text, regions) {
     return { region: r, matchedText: r.name };
   }
 
-  // ② مطابقة substring بعد التطبيع — أطول منطقة أولاً
+  // ── helper: يرجّع النص الأصلي اللي المستخدم كتبه لمنطقة معينة ──
+  const buildMatchedText = r => {
+    const normMap = {};
+    text.split(/\s+/).forEach(w => {
+      const c = w.replace(/[^\u0600-\u06FF]/g, '');
+      if (c) normMap[arNorm(c)] = c;
+    });
+    return r.name.split(/\s+/)
+      .map(w => normMap[arNorm(w.replace(/[^\u0600-\u06FF]/g, ''))] || w)
+      .join(' ');
+  };
+
+  // ② مطابقة substring للمناطق متعددة الكلمات فقط (أطول أولاً)
+  // الكلمة الواحدة تتأجل لـ ②b بعد الـ inverted index عشان المناطق الأطول تأخذ الأولوية
   for (const r of active) {
     const rNorm = arNorm(r.name);
-    const rWords = rNorm.split(/\s+/);
-    const found = rWords.length === 1
-      ? textWordSet.has(rNorm)
-      : textNorm.includes(rNorm);
-    if (found) {
-      // استرجع النص الأصلي المكتوب
-      const normMap = {};
-      text.split(/\s+/).forEach(w => {
-        const c = w.replace(/[^\u0600-\u06FF]/g, '');
-        if (c) normMap[arNorm(c)] = c;
-      });
-      const matched = r.name.split(/\s+/)
-        .map(w => normMap[arNorm(w.replace(/[^\u0600-\u06FF]/g, ''))] || w)
-        .join(' ');
-      return { region: r, matchedText: matched };
+    const rNormClean = rNorm.replace(/[^\u0600-\u06FF\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    const rWords = rNormClean.split(/\s+/).filter(Boolean);
+    if (rWords.length < 2) continue; // الكلمة الواحدة: تتأجل
+    if (textNorm.includes(rNormClean)) {
+      return { region: r, matchedText: buildMatchedText(r) };
     }
   }
 
@@ -543,6 +570,17 @@ function findRegion(text, regions) {
       if (better) { bestScore = score; best = r; bestExact = isExact; }
     }
     if (best) return { region: best, matchedText: best.name };
+  }
+
+  // ②b مطابقة الكلمة المفردة — تجري بعد الـ inverted index عشان المناطق الأطول تأخذ الأولوية
+  for (const r of active) {
+    const rNorm = arNorm(r.name);
+    const rNormClean = rNorm.replace(/[^\u0600-\u06FF\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    const rWords = rNormClean.split(/\s+/).filter(Boolean);
+    if (rWords.length !== 1) continue;
+    if (textWordSet.has(rNormClean)) {
+      return { region: r, matchedText: buildMatchedText(r) };
+    }
   }
 
   // ④ مطابقة جزئية: أطول تسلسل كلمات من الرسالة موجود داخل اسم منطقة
@@ -625,7 +663,7 @@ function classifyLine(line, regions) {
   const matchedTx = regionResult?.matchedText || '';
 
   // لو السطر كله رقم فقط → pure phone
-  if (phone && norm.replace(/\d/g, '').trim().length < 3) {
+  if (phone && norm.replace(/\d/g,'').trim().length < 3) {
     return { type: 'phone', value: phone, phone, region: null, nameStr: '' };
   }
 
@@ -637,8 +675,19 @@ function classifyLine(line, regions) {
     }
   }
 
+  // استخرج الملاحظات المضمنة (ميعاد/موعد/رحلة) من السطر نفسه
+  let inlineNote = '';
+  let normForName = norm;
+  for (const rx of NOTES_LINE_PATTERNS) {
+    const m = normForName.match(rx);
+    if (m) {
+      inlineNote = [inlineNote, m[0].trim()].filter(Boolean).join(' ، ');
+      normForName = normForName.replace(m[0], ' ');
+    }
+  }
+
   // استخرج الاسم
-  const nameStr = extractCleanName(norm,
+  const nameStr = extractCleanName(normForName,
     phone ? [phone] : [],
     region ? [{ name: region.name, matchedText: matchedTx }] : []
   );
@@ -648,22 +697,61 @@ function classifyLine(line, regions) {
     type: phone ? 'phone' : (region ? 'region' : 'name'),
     value: phone || (region ? region : nameStr),
     matchedText: matchedTx,
-    phone, region, nameStr,
+    phone, region, nameStr, inlineNote,
   };
 }
 
 /* ── Multiline block parser: one person per name line ── */
+
+// ── تقسيم على واو الكونجنكشن مع استثناء أسماء الواو ──
+function splitOnWaaw(text) {
+  const rawParts = text.split(/ و(?=[ء-غف-يٰپچژگیہ ])/);
+  if (rawParts.length < 2) return [text];
+  // دمج الأجزاء اللي أول كلمة فيها اسم واو (الجزء اتقطع غلط)
+  const merged = [rawParts[0]];
+  for (let i = 1; i < rawParts.length; i++) {
+    const firstWord = rawParts[i].trim().split(/\s+/)[0] || '';
+    if (WAAW_NAMES.has('و' + firstWord) || WAAW_NAMES.has(arNorm('و' + firstWord))) {
+      // دمج مع السابق (الـ و كانت جزء من الاسم)
+      merged[merged.length - 1] += ' و' + rawParts[i];
+    } else {
+      merged.push(rawParts[i]);
+    }
+  }
+  return merged;
+}
+
 function parseMultilineBlocks(raw, regions) {
-  // شقق كل سطر فيه '+' (فاصل أشخاص) لـ sub-lines
+  // شقق كل سطر فيه '+' أو ' و ' (فاصل أشخاص) لـ sub-lines
+  const isCleanNameOnly = seg => {
+    if (/0[12]\d{9}/.test(seg)) return false;
+    const ws = seg.trim()
+      .replace(/[^\u0621-\u063A\u0641-\u064A\u0670\u067E\u0686\u0698\u06AF\u06CC\u06C1\s]/g, '')
+      .split(/\s+/).filter(w => w.length > 1 && !STOP_WORDS.has(w) && !STOP_WORDS.has(arNorm(w)));
+    return ws.length >= 1 && ws.length <= 4;
+  };
+
   const expandedLines = [];
   raw.split(/\n/).forEach(line => {
     const t = line.trim();
     if (!t) return;
+    // '+' فاصل
     if (/\+(?!\s*20|\d{10})/.test(t)) {
       t.split(/\+(?!\s*20|\d{10})/).map(s => s.trim()).filter(Boolean).forEach(s => expandedLines.push(s));
-    } else {
-      expandedLines.push(t);
+      return;
     }
+    // ' و ' فاصل — بس لو كل الأجزاء قبل الأخير أسماء نظيفة
+    const waParts = splitOnWaaw(t);
+    if (waParts.length >= 2 && waParts.slice(0, -1).every(p => isCleanNameOnly(p.trim()))) {
+      // لو جزءان بس: الجزء الأخير لازم يكون اسم نظيف بدون رقم/منطقة
+      // (عشان نميّز بين "ومحمد" كونجنكشن و "وائل" اسم بيبدأ بواو)
+      const lastClean = isCleanNameOnly(waParts[waParts.length - 1].trim());
+      if (waParts.length >= 3 || lastClean) {
+        waParts.map(s => s.trim()).filter(Boolean).forEach(s => expandedLines.push(s));
+        return;
+      }
+    }
+    expandedLines.push(t);
   });
 
   const lines = expandedLines;
@@ -710,15 +798,16 @@ function parseMultilineBlocks(raw, regions) {
         // لو الجزء الاسمي يشبه راكب جديد والجزء التاني رقم → راكب جديد
         if (hasName && hasPhone && cl.nameStr) {
           blocks.push(cur);
-          cur = { name: cl.nameStr, phone: cl.phone, region: cl.region || cur.region || null, notes: '' };
+          cur = { name: cl.nameStr, phone: cl.phone, region: cl.region || cur.region || null, notes: cl.inlineNote || '' };
           blocks.push(cur); cur = null;
         } else {
           cur.notes = [cur.notes, lines[i].trim()].filter(Boolean).join(' ، ');
         }
       } else {
         if (cur) blocks.push(cur);
-        cur = { name: cl.nameStr || '', phone: cl.phone || '', region: cl.region || null, notes: '' };
-        blocks.push(cur); cur = null;
+        cur = { name: cl.nameStr || '', phone: cl.phone || '', region: cl.region || null, notes: cl.inlineNote || '' };
+        // لو فيه رقم → أغلق الـ block فوراً، لو مفيش → استنى السطر التالي
+        if (cl.phone) { blocks.push(cur); cur = null; }
       }
     } else if (cl.type === 'name' && cl.value) {
       if (curComplete) {
@@ -726,20 +815,20 @@ function parseMultilineBlocks(raw, regions) {
         const nextHasPhone = classified.slice(i + 1, i + 3).some(nc => nc.phone);
         if (nextHasPhone) {
           blocks.push(cur);
-          cur = { name: cl.value, phone: '', region: cur.region || null, notes: '' };
+          cur = { name: cl.value, phone: '', region: cur.region || null, notes: cl.inlineNote || '' };
         } else {
           cur.notes = [cur.notes, lines[i].trim()].filter(Boolean).join(' ، ');
         }
       } else {
         if (cur) blocks.push(cur);
-        cur = { name: cl.value, phone: '', region: null, notes: '' };
+        cur = { name: cl.value, phone: '', region: null, notes: cl.inlineNote || '' };
       }
     } else if (cl.type === 'phone') {
-      if (!cur) cur = { name: '', phone: cl.value, region: null, notes: '' };
+      if (!cur) cur = { name: '', phone: cl.value, region: null, notes: cl.inlineNote || '' };
       else if (!cur.phone) cur.phone = cl.value;
       else { blocks.push(cur); cur = { name: '', phone: cl.value, region: null, notes: '' }; }
     } else if (cl.type === 'region') {
-      if (!cur) cur = { name: '', phone: '', region: cl.value, notes: '' };
+      if (!cur) cur = { name: '', phone: '', region: cl.value, notes: cl.inlineNote || '' };
       else cur.region = cl.value;
     } else if (cl.type === 'empty' && cur && lines[i].trim()) {
       cur.notes = [cur.notes, lines[i].trim()].filter(Boolean).join(' ، ');
@@ -817,11 +906,15 @@ function splitPersonSegments(raw) {
   };
 
   PHONE_RX.lastIndex = 0;
-  const waParts = raw.split(/ و /);
+  const waParts = splitOnWaaw(raw);
   if (waParts.length >= 2) {
     const allButLast = waParts.slice(0, -1);
     if (allButLast.every(p => isCleanNameSeg(p.trim()))) {
-      return waParts.map(s => s.trim()).filter(Boolean);
+      // لو جزءان: الأخير لازم نظيف (بدون رقم) — عشان نميّز واو الكونجنكشن عن أسماء بدايتها واو (وائل، وليد، وسام)
+      const lastClean = isCleanNameSeg(waParts[waParts.length - 1].trim());
+      if (waParts.length >= 3 || lastClean) {
+        return waParts.map(s => s.trim()).filter(Boolean);
+      }
     }
   }
 
@@ -878,7 +971,8 @@ function parseMessage(text, regions) {
     }
   } else {
     const name = extractCleanName(raw, phones, region ? [{ name: region.name, matchedText: regionMatchedText }] : []);
-    passengers.push({ name, phone: phones[0] || '', region, originalMessage: raw });
+    const rawCl = classifyLine(raw, regions);
+    passengers.push({ name, phone: phones[0] || '', region, notes: rawCl.inlineNote || '', originalMessage: raw });
   }
 
   const conf = (phones.length > 0 ? 40 : 0) + (region ? 40 : 0) + (passengers.some(p => p.name) ? 20 : 0);
@@ -1260,7 +1354,7 @@ function PassengerRow({ p, onStatus, onEdit, onDelete }) {
 
       {/* Info */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="text-ellipsis" style={{ fontWeight: 700, fontSize: 14, color: nameColor }}>
+        <div className="text-ellipsis" style={{ fontWeight: 700, fontSize: 14, color: nameColor, maxWidth: '18ch' }}>
           {p.name || <span style={{ color: 'var(--text4)', fontStyle: 'italic' }}>بدون اسم</span>}
         </div>
         {/* Phone + copy button */}
@@ -1320,7 +1414,7 @@ function RegionGroup({ region, passengers, onStatus, onEdit, onDelete, onComplet
         <div className="flex-center gap10">
           {isDone ? <span style={{ fontSize: 16 }}>✅</span> : <span style={{ fontSize: 14, color: 'var(--text4)' }}>{open ? '▾' : '▸'}</span>}
           <span style={{ fontWeight: 800, fontSize: 14, color: isDone ? 'var(--green)' : isOther ? 'var(--text2)' : 'var(--text)' }}>
-            {isOther ? '🗂️ مناطق أخرى' : `${region.sortOrder}. ${region.name}`}
+            {isOther ? '🗂️ مناطق أخرى' : <span className="text-ellipsis" style={{ maxWidth: '18ch', display: 'inline-block' }}>{region.sortOrder}. {region.name}</span>}
           </span>
           <span style={{ fontSize: 11, color: 'var(--text3)' }}>{arrived}/{passengers.length}</span>
         </div>
@@ -1474,7 +1568,7 @@ function MessageParserPanel({ regions, draftPassengers, onAddPassengers }) {
                   <div className="grid2" style={{ marginBottom: 8 }}>
                     <div>
                       <label>الاسم</label>
-                      <input value={p.name} onChange={e => upd(idx, 'name', e.target.value)} placeholder="اسم الراكب" />
+                      <input value={p.name} onChange={e => upd(idx, 'name', e.target.value.slice(0,60))} placeholder="اسم الراكب" maxLength={60} />
                     </div>
                     <div>
                       <label>رقم الهاتف</label>
@@ -1572,7 +1666,7 @@ function PassengerModal({ init, regions, existingPhones, onSave, onClose }) {
           <div className="grid2">
             <div>
               <label>الاسم</label>
-              <input value={f.name} onChange={e => upd('name', e.target.value)} placeholder="اسم الراكب" autoFocus />
+              <input value={f.name} onChange={e => upd('name', e.target.value.slice(0,60))} placeholder="اسم الراكب" maxLength={60} autoFocus />
             </div>
             <div>
               <label>رقم الهاتف</label>
@@ -2023,7 +2117,7 @@ function CreateDraftModal({ onSave, onClose }) {
         <div style={{ display: 'grid', gap: 12 }}>
           <div>
             <label>اسم المسودة</label>
-            <input value={name} onChange={e => setName(e.target.value)} autoFocus />
+            <input value={name} onChange={e => setName(e.target.value.slice(0, 30))} autoFocus maxLength={30} />
           </div>
           <div>
             <label>التاريخ</label>
@@ -2116,31 +2210,32 @@ function Dashboard({ drafts, onOpen, onCreate, onDelete, onClearDrafts, onUpdate
               <div
                 key={d.id}
                 className="card2"
-                style={{ cursor: 'pointer', borderColor: isToday ? 'rgba(245,158,11,.35)' : undefined, transition: 'border-color .2s' }}
+                style={{ cursor: 'pointer', borderColor: isToday ? 'rgba(245,158,11,.35)' : undefined, transition: 'border-color .2s', overflow: 'hidden' }}
                 onClick={() => onOpen(d.id)}
               >
-                <div className="flex-center gap12">
+                <div className="flex-center gap12" style={{ flexWrap: 'wrap' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="flex-center gap8" style={{ marginBottom: 5 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5, minWidth: 0, overflow: 'hidden' }}>
                       {editingId === d.id ? (
-                        <input
+                          <input
                           value={editingName}
-                          onChange={e => setEditingName(e.target.value)}
+                          onChange={e => setEditingName(e.target.value.slice(0, 30))}
                           onBlur={() => saveEdit(d)}
                           onKeyDown={e => { if (e.key === 'Enter') saveEdit(d); if (e.key === 'Escape') setEditingId(null); }}
                           onClick={e => e.stopPropagation()}
                           autoFocus
-                          style={{ fontWeight: 900, fontSize: 15, flex: 1, padding: '4px 8px' }}
+                          maxLength={30}
+                          style={{ fontWeight: 900, fontSize: 15, flex: 1, minWidth: 0, padding: '4px 8px' }}
                         />
                       ) : (
                         <>
-                          <span style={{ fontWeight: 900, fontSize: 16, color: isToday ? 'var(--accent)' : 'var(--text)' }}>{d.name}</span>
-                          {isToday && <span className="badge badge-amber">اليوم</span>}
+                          <span className="text-ellipsis" style={{ fontWeight: 900, fontSize: 16, color: isToday ? 'var(--accent)' : 'var(--text)', minWidth: 0, flexShrink: 1 }}>{d.name}</span>
+                          {isToday && <span className="badge badge-amber" style={{ flexShrink: 0 }}>اليوم</span>}
                           <button
                             className="btn btn-ghost btn-icon btn-sm"
                             title="تعديل الاسم"
                             onClick={e => startEdit(e, d)}
-                            style={{ opacity: 0.6, fontSize: 12 }}
+                            style={{ opacity: 0.6, fontSize: 12, flexShrink: 0 }}
                           >✏️</button>
                         </>
                       )}
@@ -2180,6 +2275,22 @@ function SettingsPage({ regions, onUpdate, drafts, onImportDrafts }) {
   const [list, setList] = useState([...regions].sort((a, b) => a.sortOrder - b.sortOrder));
   const [newName, setNewName] = useState('');
   const [dragIdx, setDragIdx] = useState(null);
+  const [editingRegionId, setEditingRegionId] = useState(null);
+  const [editingRegionName, setEditingRegionName] = useState('');
+
+  const startRegionEdit = (e, r) => {
+    e.stopPropagation();
+    setEditingRegionId(r.id);
+    setEditingRegionName(r.name);
+  };
+
+  const saveRegionEdit = (r) => {
+    if (editingRegionName.trim() && editingRegionName.trim() !== r.name) {
+      persist(list.map(x => x.id === r.id ? { ...x, name: editingRegionName.trim() } : x));
+      toast('تم تعديل اسم المنطقة', 'success');
+    }
+    setEditingRegionId(null);
+  };
 
   useEffect(() => { setList([...regions].sort((a, b) => a.sortOrder - b.sortOrder)); }, [regions]);
 
@@ -2371,9 +2482,10 @@ function SettingsPage({ regions, onUpdate, drafts, onImportDrafts }) {
         <div className="flex gap8" style={{ marginBottom: 14 }}>
           <input
             value={newName}
-            onChange={e => setNewName(e.target.value)}
+            onChange={e => setNewName(e.target.value.slice(0, 60))}
             placeholder="اسم منطقة جديدة..."
             onKeyDown={e => e.key === 'Enter' && addNew()}
+            maxLength={60}
             style={{ flex: 1 }}
           />
           <button className="btn btn-primary" onClick={addNew} disabled={!newName.trim()}>+ إضافة</button>
@@ -2415,7 +2527,25 @@ function SettingsPage({ regions, onUpdate, drafts, onImportDrafts }) {
                 style={{ touchAction: 'none', cursor: 'grab', padding: '4px 8px', fontSize: 20 }}
               >⠿</span>
               <span style={{ fontSize: 11, color: 'var(--text3)', minWidth: 22, textAlign: 'center', fontWeight: 800 }}>{r.sortOrder}</span>
-              <span style={{ flex: 1, fontSize: 13, fontWeight: 700 }}>{r.name}</span>
+              {editingRegionId === r.id ? (
+                <input
+                  value={editingRegionName}
+                  onChange={e => setEditingRegionName(e.target.value.slice(0, 60))}
+                  onBlur={() => saveRegionEdit(r)}
+                  onKeyDown={e => { if (e.key === 'Enter') saveRegionEdit(r); if (e.key === 'Escape') setEditingRegionId(null); }}
+                  onClick={e => e.stopPropagation()}
+                  autoFocus
+                  maxLength={60}
+                  style={{ flex: 1, fontSize: 13, fontWeight: 700, padding: '3px 8px' }}
+                />
+              ) : (
+                <span
+                  className="text-ellipsis"
+                  title={r.name}
+                  onClick={e => startRegionEdit(e, r)}
+                  style={{ flex: 1, fontSize: 13, fontWeight: 700, maxWidth: '18ch', cursor: 'text' }}
+                >{r.name}</span>
+              )}
               <label className="flex-center gap6" style={{ cursor: 'pointer', fontSize: 11, color: r.active ? 'var(--green)' : 'var(--red)', margin: 0 }}>
                 <input type="checkbox" checked={r.active} onChange={() => toggle(r.id)} style={{ width: 'auto', cursor: 'pointer' }} />
                 {r.active ? 'نشط' : 'معطل'}
@@ -2566,48 +2696,48 @@ export default function App() {
   return (
     <ToastProvider>
       <ConfirmProvider>
-        <Header
-          view={view}
-          onNav={nav}
-          draftName={view === 'draft' && currentDraft ? currentDraft.name : null}
-        />
+      <Header
+        view={view}
+        onNav={nav}
+        draftName={view === 'draft' && currentDraft ? currentDraft.name : null}
+      />
 
-        <main style={{ paddingBottom: 48 }}>
-          {view === 'dashboard' && (
-            <Dashboard
-              drafts={drafts}
-              onOpen={openDraft}
-              onCreate={() => setShowCreate(true)}
-              onDelete={deleteDraft}
-              onClearDrafts={clearAllDrafts}
-              onUpdate={updateDraft}
-            />
-          )}
-          {view === 'draft' && currentDraft && (
-            <DraftView draft={currentDraft} regions={regions} onUpdate={updateDraft} />
-          )}
-          {view === 'draft' && !currentDraft && (
-            <div className="empty">
-              <div className="empty-icon">⚠️</div>
-              <div className="empty-title">المسودة غير موجودة</div>
-              <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => nav('dashboard')}>
-                ← العودة للقائمة
-              </button>
-            </div>
-          )}
-          {view === 'settings' && (
-            <SettingsPage
-              regions={regions}
-              onUpdate={setRegions}
-              drafts={drafts}
-              onImportDrafts={handleImportDrafts}
-            />
-          )}
-        </main>
-
-        {showCreate && (
-          <CreateDraftModal onSave={createDraft} onClose={() => setShowCreate(false)} />
+      <main style={{ paddingBottom: 48 }}>
+        {view === 'dashboard' && (
+          <Dashboard
+            drafts={drafts}
+            onOpen={openDraft}
+            onCreate={() => setShowCreate(true)}
+            onDelete={deleteDraft}
+            onClearDrafts={clearAllDrafts}
+            onUpdate={updateDraft}
+          />
         )}
+        {view === 'draft' && currentDraft && (
+          <DraftView draft={currentDraft} regions={regions} onUpdate={updateDraft} />
+        )}
+        {view === 'draft' && !currentDraft && (
+          <div className="empty">
+            <div className="empty-icon">⚠️</div>
+            <div className="empty-title">المسودة غير موجودة</div>
+            <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => nav('dashboard')}>
+              ← العودة للقائمة
+            </button>
+          </div>
+        )}
+        {view === 'settings' && (
+          <SettingsPage
+            regions={regions}
+            onUpdate={setRegions}
+            drafts={drafts}
+            onImportDrafts={handleImportDrafts}
+          />
+        )}
+      </main>
+
+      {showCreate && (
+        <CreateDraftModal onSave={createDraft} onClose={() => setShowCreate(false)} />
+      )}
       </ConfirmProvider>
     </ToastProvider>
   );

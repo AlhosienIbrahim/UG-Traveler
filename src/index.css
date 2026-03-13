@@ -23,10 +23,6 @@ html, body {
   overflow-x: hidden;
 }
 
-html {
-  background: #0f1419; /* يمنع الوميض خلف system bars */
-}
-
 *,
 *::before,
 *::after {
@@ -55,7 +51,12 @@ html {
   --text4: #64748b;
   --brand: #3b82f6;
   --brand-light: #93c5fd;
+  /* الحد الأقصى لعرض النصوص المقطوعة — يتقلص مع الشاشة */
+  --name-maxw: 18ch;
 }
+@media (max-width: 768px) { :root { --name-maxw: 14ch; } }
+@media (max-width: 480px) { :root { --name-maxw: 11ch; } }
+@media (max-width: 360px) { :root { --name-maxw:  8ch; } }
 
 body {
   font-family: 'Cairo', sans-serif;
@@ -564,19 +565,38 @@ label {
 
   .rg-head {
     padding: 8px 10px;
-    flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
   }
 
+  /* passenger row: grid 3-column (status | info | actions) */
   .pr {
-    padding: 10px;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-rows: auto;
+    align-items: center;
+    padding: 10px 12px;
     gap: 8px;
   }
 
-  .pr .flex.gap6 {
-    width: 100%;
-    justify-content: flex-end;
+  .pr-status {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+    flex-direction: row;
+    gap: 5px;
+  }
+
+  .pr-info {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  .pr-actions {
+    grid-column: 3;
+    grid-row: 1;
+    align-self: center;
+    gap: 4px;
   }
 
   .section-title {
@@ -641,6 +661,7 @@ label {
   .modal {
     padding: 14px;
     border-radius: 10px;
+    max-height: 90vh;
   }
 
   input,
@@ -654,6 +675,76 @@ label {
     width: 26px;
     height: 26px;
     font-size: 11px;
+  }
+
+  /* rg-head: tighter on small screens */
+  .rg-head {
+    flex-wrap: nowrap;
+    gap: 6px;
+    padding: 8px;
+  }
+
+  /* Truncate region name at smaller width */
+  .rg-head .text-ellipsis {
+    max-width: 10ch !important;
+  }
+
+  /* pr row tighter */
+  .pr {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+
+  .pr-status .sb {
+    width: 26px;
+    height: 26px;
+  }
+}
+
+/* ── Short/long button text for responsive ── */
+.btn-text-short { display: none; }
+.btn-text-long  { display: inline; }
+
+@media (max-width: 520px) {
+  .btn-text-long  { display: none; }
+  .btn-text-short { display: inline; }
+}
+
+/* ── Export modal: stack phone-format radios on small screens ── */
+@media (max-width: 500px) {
+  /* make radio groups wrap */
+  div[style*="display: flex"][style*="monospace"] {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+}
+
+/* ── Settings region row: shrink on tiny screens ── */
+@media (max-width: 400px) {
+  /* region list row — hide sort order number to save space */
+  [data-drag-idx] > span[style*="min-width: 22px"] {
+    display: none;
+  }
+}
+
+/* ── Header: prevent overflow on very small screens (320px) ── */
+@media (max-width: 380px) {
+  /* Hide the back button label, keep only the arrow on tiny screens */
+  header .btn-ghost span:not(:first-child) {
+    display: none;
+  }
+
+  /* Shrink logo container */
+  header > div > div:first-child {
+    padding: 4px 8px;
+  }
+}
+
+/* ── Dashboard card: better wrapping for action buttons ── */
+@media (max-width: 480px) {
+  .card2 .flex.gap12 {
+    flex-wrap: wrap;
+    gap: 8px;
   }
 }
 
@@ -792,5 +883,48 @@ hr {
 
   .stats-grid {
     grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* ── Modal overlay: better padding on tiny screens ── */
+@media (max-width: 400px) {
+  .modal-overlay {
+    padding: 8px;
+    align-items: flex-end; /* slide up from bottom on tiny screens */
+  }
+
+  .modal {
+    border-radius: 16px 16px 0 0;
+    max-height: 94vh;
+    padding: 16px 14px;
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+/* ── Passenger row: stack info below status on very tiny screens ── */
+@media (max-width: 360px) {
+  .pr {
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    gap: 6px 8px;
+  }
+
+  .pr-status {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    align-self: start;
+    padding-top: 2px;
+  }
+
+  .pr-info {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .pr-actions {
+    grid-column: 2;
+    grid-row: 2;
+    justify-content: flex-start;
   }
 }
