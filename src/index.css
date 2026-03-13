@@ -886,21 +886,7 @@ hr {
   }
 }
 
-/* ── Modal overlay: better padding on tiny screens ── */
-@media (max-width: 400px) {
-  .modal-overlay {
-    padding: 8px;
-    align-items: flex-end; /* slide up from bottom on tiny screens */
-  }
 
-  .modal {
-    border-radius: 16px 16px 0 0;
-    max-height: 94vh;
-    padding: 16px 14px;
-    width: 100%;
-    max-width: 100%;
-  }
-}
 
 /* ── Passenger row: stack info below status on very tiny screens ── */
 @media (max-width: 360px) {
